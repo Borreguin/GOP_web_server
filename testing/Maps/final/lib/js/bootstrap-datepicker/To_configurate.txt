@@ -1,1 +1,0 @@
-https://uxsolutions.github.io/bootstrap-datepicker
