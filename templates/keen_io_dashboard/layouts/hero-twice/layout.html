@@ -1,0 +1,40 @@
+{% extends "layouts/head_menu_navigation.html" %}
+{% block content %}
+
+  <div class="container-fluid">
+
+		<div class="row">
+		  <div class="col-lg-8">
+			<div class="chart-wrapper">
+			  <div class="chart-title">
+				{{ titles.sbt1 | safe }}
+			  </div>
+			  <div class="chart-stage">
+				<div id="grid-1">
+				  <img data-src="holder.js/100%x500/white/text:#grid-1">
+				</div>
+			  </div>
+			  <div class="chart-notes">
+				{{ notes.nt1 | safe}}
+			  </div>
+			</div>
+		  </div>
+		  <div class="col-lg-4">
+			<div class="chart-wrapper">
+			  <div class="chart-title">
+				{{ titles.sbt2 | safe }}
+			  </div>
+			  <div class="chart-stage">
+                  <div id="grid-2">
+				    <img data-src="holder.js/100%x500/white/text:#grid-2">
+                  </div>
+			  </div>
+			  <div class="chart-notes">
+				{{ notes.nt2 | safe}}
+			  </div>
+			</div>
+		  </div>
+		</div>
+	</div>
+
+{% endblock %}

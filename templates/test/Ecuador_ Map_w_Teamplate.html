@@ -1,0 +1,21 @@
+{% extends "keen_io_dashboard/layouts/hero-twice/layout.html" %}
+{% block head_scripts %}
+    <script>
+        const map_data = JSON.parse('{{ map_data | tojson | safe}}');
+        const map_config = JSON.parse('{{ map_config | tojson | safe}}');
+        let map_selection = "all";
+    </script>
+{% endblock %}
+
+{% block body_scripts %}
+        <script type="text/javascript" src="/static/js_lib/d3.js"></script>
+		<script type="text/javascript" src="/static/js_lib/queue.js"></script>
+		<script type="text/javascript" src="/static/js_lib/jquery/dist/jquery.min.js"></script>
+        <script type="text/javascript" src="/static/my_js/map_util.js"></script>
+		<script>
+            console.log("Starting Ecuador map...");
+            make_map("#grid-1", "all");
+            assign_color(map_config);
+            assign_function();
+        </script>
+{% endblock %}

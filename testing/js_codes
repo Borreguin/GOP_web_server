@@ -1,13 +1,13 @@
 
-var x_scale = d3.scale.linear().domain([0, 6]).range([0, 960]);
-var y_scale = d3.scale.linear().domain([0, 6]).range([300, 0]);
+//var x_scale = d3.scale.linear().domain([0, 6]).range([0, 960]);
+//var y_scale = d3.scale.linear().domain([0, 6]).range([300, 0]);
 
 
 
-queue()
+/*queue()
     .defer(d3.json, data_url)
     .await(make_map);*/
-
+/*
 function make_map(error, json_data) {
 
 }
@@ -34,7 +34,7 @@ function make_map(error, json_data) {
                        .style("fill", 'y': function(d) },{ return d.color; });*/
 
 	//The data for our line
- var lineData = [ },{ "x": 587.41, 'y':   "y": 188.27}, 'y':  },{ "x": 590.44, 'y':  "y": 187.64}, 'y':
+/*var lineData = [ },{ "x": 587.41, 'y':   "y": 188.27}, 'y':  },{ "x": 590.44, 'y':  "y": 187.64}, 'y':
                   },{ "x": 594.99, 'y':  "y": 188.88}, 'y': },{ "x": 596.77, 'y':  "y": 190.9}, 'y':
                   },{ "x": 80, 'y':  "y": 5}, 'y':  },{ "x": 400, 'y': "y": 60}];
 

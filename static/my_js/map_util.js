@@ -1,25 +1,28 @@
 /* ########################################################################### */
 // The following are parameter by default:
 
-const placeToPlot = '#d3_map',
-    defs = map_data['defs'],
+let placeToPlot = '#d3_map';
+const defs = map_data['defs'],
     paths = map_data['paths'],
     colors = map_config;
 
 let scale = 1,
-    map_center_x = 25,
-    map_center_y = 20;
+    map_center_x = 20,
+    map_center_y = 10;
 
 let margin = {
-        top: 10,
+        top: 5,
         right: 10,
-        bottom: 10,
+        bottom: 5,
         left: 10
 };
 
-// determine the size of the chart
-let width = Math.max(Math.min(window.innerWidth, 1200), 500) - margin.left - margin.right;
-let height =  Math.max(Math.min(window.innerHeight, 1000), 500) - margin.top - margin.bottom;
+let bar_size = 160;
+let w = $(document).width();
+let h = $(document).height();
+let height =  Math.max(Math.min(h, 800), 300) - margin.top - margin.bottom - bar_size;
+let width = Math.max(Math.min(w, 1200), 500) - margin.left - margin.right;
+
 
 /* ########################################################################### */
 
@@ -32,14 +35,17 @@ function define_map(new_margin, new_width, new_height) {
 }
 
 
-console.log("Starting Ecuador map...");
-make_map(placeToPlot, map_selection);
-assign_color(colors);
-assign_function();
-
 function make_map(to_plot, to_select) {
 
+    placeToPlot = to_plot;
+    // get width and height
+    let borders = d3.select(to_plot).node().getBoundingClientRect();
+    if(borders.width > 100) { width = borders.width - margin.right - margin.left;}
+    if(borders.height > 100) { height = borders.height -margin.bottom - margin.top;}
+
+    // cleaning the space to work with
     d3.select(to_plot).select("svg").remove();
+    d3.select(to_plot).select("img").remove();
 
 	let svgContainer = d3.select(placeToPlot)
         .append("svg")
@@ -76,13 +82,9 @@ function make_map(to_plot, to_select) {
             if(id !== to_select){ continue; }
             try {
                 xy = paths[to_select].xy;
-                let minx = paths[to_select].minX;
-                let miny = paths[to_select].minY;
-                let maxy = paths[to_select].maxY;
-                let maxx = paths[to_select].maxX;
 
                 x_scale = d3.scale.linear()
-                    .domain([paths[to_select].minX , paths[to_select].maxX])
+                    .domain([paths[to_select].minX, paths[to_select].maxX])
                     .range([margin.left, width - margin.right]);
 
                 y_scale = d3.scale.linear()
@@ -112,7 +114,13 @@ function assign_color(map_information) {
 }
 
 function assign_function() {
-    d3.selectAll(".province").on("dblclick",function(d){
+    d3.selectAll(".province").on("dblclick",function(){
+        let color = this.attributes.fill.value;
         make_map(placeToPlot, this.id);
+        d3.select("#"  + this.id).attr('fill', color);
     });
 }
+/*
+function create_home_button() {
+
+}*/

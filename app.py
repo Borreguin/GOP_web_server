@@ -5,61 +5,74 @@ import pandas as pd
 # default code
 app = Flask(__name__)
 
+# Links for the main page:
+links = [
+    {"url": '/', "text": "Inicio"},
+    {"url": '/test', 'text': "Nuevo Link"}
+]
+
 
 @app.route('/')
 def hello_world():
     """ This is the MAIN PAGE of this Server Application"""
+    # TODO: Create a default page
     return 'Hello World!'
+
+
+""" A testing part ------------------------------------------------------------------------"""
+
+
+@app.route("/test")
+def test_page():
+    """ Tests the use of templates and layouts"""
+    school = {"school_name": 'prueba 1', "total_students": 32}
+    return render_template('test/show_test.html', school=school)
 
 
 @app.route("/test/<string:name>/")
 def test(name):
-    """ This is a testing path """
-    return render_template('test.html', name=name)
+    """ This is a testing path that include an argument called 'name' """
+    return render_template('test/test.html', name=name)
 
 
-""" Include new pages below this """
+@app.route("/layout/<string:name>/")
+def layout(name):
+    """ Testing a layout with name
+        Ex: /layout/hero-twice
+    """
+    html = 'keen_io_dashboard/layouts/' + name + '/layout.html'
+    title = 'General Title'
+    titles = {'sbt1': "my subtitle 1", 'sbt2': "my subtitle 2"}
+    notes = {'nt1': "my note 1", 'nt2': "my note 2"}
+    return render_template(html, links=links, title=title, titles=titles, notes=notes)
+
+
+""" End testing part ------------------------------------------------------------------------"""
+""" PRODUCTION PART: Include new pages below this ___________________________________________"""
 
 
 @app.route("/map")
 def create_map():
     map_data = json.load(open('./static/app_data/maps/ecuador_xy.json'))
-    paths = map_data["paths"]
-    maxX, minX, maxY, minY = 0, 1000, 0, 1000
-    for p in paths:
-        m = paths[p]["xy"]
-        df_aux = pd.DataFrame(m)
-        df_aux.dropna(inplace=True)
-        try:
-            xmax_df, ymax_df = df_aux.max()
-            xmin_df, ymin_df = df_aux.min()
-
-            if xmax_df > maxX:
-                maxX = xmax_df
-            if ymax_df > maxY:
-                maxY = ymax_df
-
-            if xmin_df < minX:
-                minX = xmin_df
-            if ymin_df < minY:
-                minY = ymin_df
-
-            paths[p]['minX'] = xmin_df
-            paths[p]['minY'] = ymin_df
-            paths[p]['maxX'] = xmax_df
-            paths[p]['maxY'] = ymax_df
-
-        except:
-            print(p)
-
-    print(minX,maxX,minY,maxY)
-    map_data["paths"] = paths
-    #with open("final.json", 'w') as to_save:
-    #    json.dump(map_data, to_save)
     df_config = pd.read_excel('./static/app_data/maps/empr_electricas_por_provincia.xlsx')
     to_send = df_config.set_index('id').to_dict('index')
-    return render_template('Ecuador_Map.html', map_data=map_data, map_config=to_send)
+    title = "Testing a map creation"
+    titles = {'sbt1': 'PRODUCCIÓN ENERGÉTICA (MWh)', 'sbt2': 'CURVA DE GENERACIÓN (MW)'}
+    notes = {'nt1': 'Información preliminar, actualizada horariamente <br> Fuente: SCADA - CENACE',
+             'nt2': 'Información preliminar, actualizada horariamente <br> Fuente: SCADA - CENACE'}
+    return render_template('test/Ecuador_ Map_w_Teamplate.html', map_data=map_data, map_config=to_send,
+                           links=links, title=title, titles=titles, notes=notes)
+
+
+@app.route("/dashboard")
+def test_dashboard():
+    title = "Información Operativa en Tiempo Real"
+    titles = {'sbt1': 'PRODUCCIÓN ENERGÉTICA (MWh)', 'sbt2': 'CURVA DE GENERACIÓN (MW)'}
+    notes = {'nt1': 'Información preliminar, actualizada horariamente <br> Fuente: SCADA - CENACE',
+             'nt2': 'Información preliminar, actualizada horariamente <br> Fuente: SCADA - CENACE'}
+    return render_template('pages/ds_demanda.html',
+                           links=links, title=title, titles=titles, notes=notes)
 
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=80)
+    app.run(host='10.30.2.45', port=5000)
