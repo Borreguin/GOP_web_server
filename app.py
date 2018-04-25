@@ -47,21 +47,21 @@ def layout(name):
     return render_template(html, links=links, title=title, titles=titles, notes=notes)
 
 
-""" End testing part ------------------------------------------------------------------------"""
-""" PRODUCTION PART: Include new pages below this ___________________________________________"""
-
-
 @app.route("/map")
 def create_map():
     map_data = json.load(open('./static/app_data/maps/ecuador_xy.json'))
     df_config = pd.read_excel('./static/app_data/maps/empr_electricas_por_provincia.xlsx')
     to_send = df_config.set_index('id').to_dict('index')
-    title = "Testing a map creation"
-    titles = {'sbt1': 'PRODUCCIÓN ENERGÉTICA (MWh)', 'sbt2': 'CURVA DE GENERACIÓN (MW)'}
-    notes = {'nt1': 'Información preliminar, actualizada horariamente <br> Fuente: SCADA - CENACE',
-             'nt2': 'Información preliminar, actualizada horariamente <br> Fuente: SCADA - CENACE'}
-    return render_template('test/Ecuador_ Map_w_Teamplate.html', map_data=map_data, map_config=to_send,
+    title = "Creando un mapa"
+    titles = {'sbt1': 'ECUADOR', 'sbt2': 'EMPTY'}
+    notes = {'nt1': 'Este es un ejemplo de uso del mapa del Ecuador',
+             'nt2': 'Sin nota'}
+    return render_template('test/Ecuador_ Map_w_Template.html', map_data=map_data, map_config=to_send,
                            links=links, title=title, titles=titles, notes=notes)
+
+
+""" End testing part ------------------------------------------------------------------------"""
+""" PRODUCTION PART: Include new pages below this ___________________________________________"""
 
 
 @app.route("/dashboard")
