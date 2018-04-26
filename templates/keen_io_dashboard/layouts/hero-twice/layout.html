@@ -7,17 +7,23 @@
 		  <div class="col-lg-8">
 			<div class="chart-wrapper">
 			  <div class="chart-title">
-				{{ titles.sbt1 | safe }}
+                  {{ titles.sbt1 | safe }}
 			  </div>
 			  <div class="chart-stage">
-				<div id="grid-1">
-				  <img data-src="holder.js/100%x500/white/text:#grid-1">
-				</div>
+                  {% block grid_1 %}
+                      <div id="grid_1">
+                        <img data-src="holder.js/100%x500/white/text:#grid_1">
+                      </div>
+                  {% endblock %}
 			  </div>
-			  <div class="chart-notes">
-				{{ notes.nt1 | safe}}
-			  </div>
-			</div>
+
+                {% block note_1 %}
+                    <div class="chart-notes">
+                        {{ notes.nt1 | safe}}
+                    </div>
+                {% endblock %}
+
+            </div>
 		  </div>
 		  <div class="col-lg-4">
 			<div class="chart-wrapper">
@@ -25,14 +31,19 @@
 				{{ titles.sbt2 | safe }}
 			  </div>
 			  <div class="chart-stage">
-                  <div id="grid-2">
-				    <img data-src="holder.js/100%x500/white/text:#grid-2">
+                  {% block grid_2 %}
+                      <div id="grid_2">
+				        <img data-src="holder.js/100%x500/white/text:#grid_2">
+                      </div>
+                  {% endblock %}
+			  </div>
+
+                {% block note_2 %}
+                  <div class="chart-notes">
+                    {{ notes.nt2 | safe}}
                   </div>
-			  </div>
-			  <div class="chart-notes">
-				{{ notes.nt2 | safe}}
-			  </div>
-			</div>
+			    {% endblock %}
+            </div>
 		  </div>
 		</div>
 	</div>

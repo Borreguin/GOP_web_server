@@ -19,6 +19,7 @@ Los siguientes son requisitos para este servidor:
 Aplicativos adicionales:
 
     - PI-SDK
+    conda install -c clinicalgraphics/label/archived wfastcgi
 
 running as:
 In folder E:/GOP_WebServer

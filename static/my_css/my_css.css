@@ -1,0 +1,25 @@
+div{
+
+}
+.rs_width_100 { width: 100%; margin: 0; }
+.rs_height_100 { height: 100%; margin: 0; }
+.container_panel{
+    fill: #b6b6b6;
+    width: 100%;
+    height: 100%;
+}
+
+svg{
+
+}.icon{
+    width: 30%;
+    fill: #b6b6b6;
+ }
+ .value_panel{
+     width: 80%;
+ }
+ .container_panel{
+     width: 100%;
+     height: 100%;
+ }
+

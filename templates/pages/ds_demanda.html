@@ -1,1 +1,28 @@
 {% extends "keen_io_dashboard/layouts/hero-twice/layout.html" %}
+{% block grid_1 %}
+
+        <div class="col-lg-5 rs_height_100" >
+            <div id="chart_1">
+                <img data-src="holder.js/100%x550/white/text:#chart_1">
+            </div>
+        </div>
+        <div class="col-lg-7 rs_height_100">
+            <div id="chart_2">
+                <img data-src="holder.js/100%x550/white/text:#chart_2">
+            </div>
+        </div>
+
+{% endblock %}
+{% block body_scripts %}
+    <script type="text/javascript" src="/static/my_js/panel_icon.js"></script>
+    <script>
+
+    let data_panel = [
+        {'id': 0, 'tag': 'tag1', 'label': 'Generación', 'icon': 'static/my_icons/electrical/foco.png'},
+        {'id': 1, 'tag': 'tag2', 'label': 'Hidro', 'icon': 'static/my_icons/electrical/hidroelectrica.png'},
+        {'id': 2, 'tag': 'tag3', 'label': 'Hidro', 'icon': 'static/my_icons/electrical/hidroelectrica.png'}
+    ];
+        draw_panel("#chart_1", data_panel)
+    </script>
+{% endblock %}
+

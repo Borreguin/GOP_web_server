@@ -47,13 +47,13 @@
   border-bottom: 1px solid #d7d7d7;
   color: #293759;
   font-size: 14px;
-  padding: 7px 10px 4px;
+  padding: 7px 8px 4px;
   font-weight: bold;
 }
 
 .keen-dashboard .chart-wrapper .chart-stage {
   overflow: hidden;
-  padding: 5px 10px;
+  padding: 3px 5px;
   position: relative;
 }
 
@@ -62,7 +62,7 @@
   border-top: 1px solid #e2e2e2;
   color: black;
   font-size: 12px;
-  padding: 8px 10px 5px;
+  padding: 3px 7px 3px;
 }
 
 .keen-dashboard .chart-wrapper .keen-dataviz,

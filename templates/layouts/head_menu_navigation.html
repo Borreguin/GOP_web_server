@@ -14,6 +14,7 @@
         </script>
         <!-- Dashboard -->
         <link rel="stylesheet" type="text/css" href="/static/js_lib/keen-assets/css/keen-dashboards.css" />
+          <link href="/static/my_css/my_css.css" rel="stylesheet" type="text/css" />
           {% block head_scripts %} {% endblock %}
     {% endblock %}
   </head>
@@ -48,7 +49,16 @@
     </div>
 
     {% block content %}{% endblock %}
+
+    <!--- usual libraries to use ---->
+        <script type="text/javascript" src="/static/js_lib/d3.js"></script>
+		<script type="text/javascript" src="/static/js_lib/queue.js"></script>
+		<script type="text/javascript" src="/static/js_lib/jquery/dist/jquery.min.js"></script>
+        <script type="text/javascript" src="/static/my_js/my_functions.js"></script>
+    <!-- end usual libraries -->
+
     {% block body_scripts %}{% endblock %}
+
     <p class="text-right">&copy; 2018 Gerencia de Operaciones</p>
   </body>
 </html>

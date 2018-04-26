@@ -38,10 +38,10 @@ function define_map(new_margin, new_width, new_height) {
 function make_map(to_plot, to_select) {
 
     placeToPlot = to_plot;
+
     // get width and height
-    let borders = d3.select(to_plot).node().getBoundingClientRect();
-    if(borders.width > 100) { width = borders.width - margin.right - margin.left;}
-    if(borders.height > 100) { height = borders.height -margin.bottom - margin.top;}
+    let borders = get_height_width(to_plot);
+    width = borders.width; height = borders.height;
 
     // cleaning the space to work with
     d3.select(to_plot).select("svg").remove();

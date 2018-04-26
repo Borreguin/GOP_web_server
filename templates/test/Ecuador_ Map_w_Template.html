@@ -8,13 +8,11 @@
 {% endblock %}
 
 {% block body_scripts %}
-        <script type="text/javascript" src="/static/js_lib/d3.js"></script>
-		<script type="text/javascript" src="/static/js_lib/queue.js"></script>
-		<script type="text/javascript" src="/static/js_lib/jquery/dist/jquery.min.js"></script>
+
         <script type="text/javascript" src="/static/my_js/map_util.js"></script>
 		<script>
             console.log("Starting Ecuador map...");
-            make_map("#grid-1", "all");
+            make_map("#grid_1", "all");
             assign_color(map_config);
             assign_function();
         </script>
