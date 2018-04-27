@@ -1,18 +1,5 @@
-let margin = {
-        top: 5,
-        right: 5,
-        bottom: 5,
-        left: 5
-};
-
-let bar_size = 160;
-let w = $(document).width();
-let h = $(document).height();
-let height =  Math.max(Math.min(h, 800), 300) - margin.top - margin.bottom - bar_size;
-let width = Math.max(Math.min(w, 1200), 500) - margin.left - margin.right;
-
-
-
+let stripe_per_size = 0.5;
+let stripe_class = "text_stripe";
 
 function draw_panel(to_plot, data_panel) {
 
@@ -28,42 +15,107 @@ function draw_panel(to_plot, data_panel) {
 
 	let gallery = d3.select(to_plot)
         .append('div')
-        .attr("width", width + margin.left + margin.right)
-        .attr("height", height + margin.top + margin.bottom);
+        .style("width", (width + margin.left + margin.right) + "px")
+        .style("height", (height + margin.top + margin.bottom) + "px");
 
 	// icon size and cell size
 	let icon_width = w_panel*0.30;
     let cell_height = h_panel/n_data;
 
-    //let gallery = d3.select(to_plot).append('div');
-
+    // let put the data inside the container
+    // creating 'n_data' containers
     let container = gallery.selectAll('.container_panel')
         .data(data_panel, function(d) { return d.id; });
 
+    // creating individual cells
     let cell = container.enter().append('div')
         .attr('class', 'container_panel')
-        .attr('height', cell_height)
-        .attr('width', w_panel);
+        .style('height', cell_height + "px")
+        .style('width', w_panel + "px")
+        .style('border-color',function (d) {return d.color;} );
 
     // adding icons:
     let icons = cell.append('div')
         .attr("class", "rs_icon")
-        .attr('height', cell_height);
-
-    // adding panel display
-    let val_cell = cell.append('div')
-        .attr("class", "col-sm-8")
-        .append('svg')
-        .attr('height', cell_height)
-        .attr('width', w_panel - icon_width - 10)
-        .append('rect')
-        .attr('height', cell_height)
-        .attr('width', w_panel - icon_width - 10);
+        .style('height', cell_height + "px");
 
     icons.append('img')
         .attr('class', 'img')
         .style("height", cell_height + "px")
         .attr('src', function(d) { return d.icon; });
+
+    // adding stripes:
+    let stripe_width = w_panel - icon_width - 3.5;
+    let stripe_height = cell_height*stripe_per_size;
+    let stripes = cell.append('div')
+        .attr("class", "col-sm-8 btn btn-primary")
+        .style('height', stripe_height + "px")
+        .style('width', stripe_width + "px" )
+        .style('background-color', function (d) {return d.color})
+        .style('border-color', function (d) {return d.color})
+        .append("xhtml:body")
+        .style("background-color", "transparent")
+        .html( function (d) {
+            let font_size =  stripe_height*0.4;
+            if(d.label.length > 18 && d.label.length < 24 ){
+                font_size = stripe_height*0.35;
+            }else if( d.label.length > 24){
+                font_size = stripe_height*0.25;
+            }
+            return '<div' +
+                ' style="width:'+ (stripe_width-10)  + 'px;' +
+                ' font-size:'+ font_size +'px"' +
+                ' class="' + stripe_class + '"' +
+                '>'
+                +  d.label
+                + '</div>'});
+
+    // adding value container:
+    let value_cell = cell.append('div')
+        .style('height', (cell_height - stripe_height) + "px")
+        .style('width', stripe_width + "px")
+        .attr("transform", "translate(" + icon_width + "," + stripe_per_size + ")");
+
+    // adding stripes:
+
+    /*let stripe = val_cell.append('rect')
+        .attr('height', cell_height*stripe_per_size)
+        .attr('width', stripe_width)
+        .attr('fill', function (d) { return d.color; })
+        .attr('fill-opacity', 0.9)
+        .attr('stroke-width', 5)
+        .attr('stroke', function (d) { return d.color; });*/
+
+    /*let text = val_cell
+        .append('foreignObject')
+        .attr('x', w_panel*0.02)
+        .attr('y', cell_height*0.02)
+        .attr('width', stripe_width - 10)
+        .attr('height', cell_height*0.7)
+        .append("xhtml:body")
+        .style("background-color", "transparent")
+        .html( function (d) {
+            return '<div' +
+                ' style="width:'+ stripe_width  + 'px;"' +
+                ' class="' + stripe_class + '"' +
+                '><h4>'
+                +  d.label
+                + '</h4></div>'});
+
+
+
+    /*
+    //Add the SVG Text Element to the svgContainer
+    let text = val_cell.append("text");
+
+    //Add SVG Text Element Attributes
+    let textLabels = text
+        .attr("x", w_panel*0.05)
+        .attr("y", cell_height*0.3)
+        .text( function (d) { return d.label; })
+        .attr("font-size", cell_height*0.2 + "px")
+        .attr("class", "text_stripe")
+        .attr("fill", "white");
 
 
     //container.exit().remove();

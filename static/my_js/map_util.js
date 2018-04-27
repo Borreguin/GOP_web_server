@@ -10,19 +10,6 @@ let scale = 1,
     map_center_x = 20,
     map_center_y = 10;
 
-let margin = {
-        top: 5,
-        right: 10,
-        bottom: 5,
-        left: 10
-};
-
-let bar_size = 160;
-let w = $(document).width();
-let h = $(document).height();
-let height =  Math.max(Math.min(h, 800), 300) - margin.top - margin.bottom - bar_size;
-let width = Math.max(Math.min(w, 1200), 500) - margin.left - margin.right;
-
 
 /* ########################################################################### */
 
