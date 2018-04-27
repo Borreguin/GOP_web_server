@@ -75,4 +75,5 @@ def test_dashboard():
 
 
 if __name__ == '__main__':
-    app.run(host='10.30.2.45', port=5000)
+    # app.run(host='10.30.2.45', port=5000)
+    app.run()

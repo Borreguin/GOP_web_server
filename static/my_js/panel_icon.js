@@ -40,26 +40,33 @@ function draw_panel(to_plot, data_panel) {
     let container = gallery.selectAll('.container_panel')
         .data(data_panel, function(d) { return d.id; });
 
-    let cell = container.enter().append('svg')
+    let cell = container.enter().append('div')
         .attr('class', 'container_panel')
-        .attr('height', cell_height);
+        .attr('height', cell_height)
+        .attr('width', w_panel);
 
     // adding icons:
     let icons = cell.append('div')
-        .attr("class", "icon")
-        .attr('height', cell_height)
-        .attr('width', icon_width);
+        .attr("class", "rs_icon")
+        .attr('height', cell_height);
 
     // adding panel display
-    let val_cell = cell.append('rect')
-        .attr("height", cell_height)
-        .attr("width", w_panel - icon_width )
-        .attr("transform", "translate(" + icon_width + "," + 0 + ")");
+    let val_cell = cell.append('div')
+        .attr("class", "col-sm-8")
+        .append('svg')
+        .attr('height', cell_height)
+        .attr('width', w_panel - icon_width - 10)
+        .append('rect')
+        .attr('height', cell_height)
+        .attr('width', w_panel - icon_width - 10);
 
     icons.append('img')
-    .attr('class', 'picture')
-    .attr('src', function(d) { return d.icon; });
+        .attr('class', 'img')
+        .style("height", cell_height + "px")
+        .attr('src', function(d) { return d.icon; });
 
+
+    //container.exit().remove();
 
     /*
     indv_container.append('svg')

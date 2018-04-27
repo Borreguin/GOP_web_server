@@ -25,3 +25,6 @@ running as:
 In folder E:/GOP_WebServer
 E:\GOP_WebServer\venv\Scripts\python.exe "C:\Program Files\JetBrains\PyCharm 2018.1.1\helpers\pydev\pydevd.py"
 --module --multiproc --qt-support=auto --client 127.0.0.1 --port 60060 --file flask run
+
+E:\GOP_WebServer\venv\Scripts\python.exe "C:\Program Files\JetBrains\PyCharm 2017.1.5\helpers\pydev\pydevconsole.py"
+--module --multiproc --qt-support=auto --client 127.0.0.1 --port 60060 --file flask run
