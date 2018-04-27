@@ -1,6 +1,8 @@
 from Crypto import Random
 from Crypto.Cipher import AES
 
+key = b'\xbf\xc0\x85)\x10nc\x94\x02)j\xdf\xcb\xc4\x94\x9d(\x9e[EX\xc8\xd5\xbfI{\xa2$\x05(\xd5\x18'
+
 def pad(s):
     return s + b"\0" * (AES.block_size - len(s) % AES.block_size)
 
@@ -30,7 +32,4 @@ def decrypt_file(file_name, key):
     with open(file_name[:-4], 'wb') as fo:
         fo.write(dec)
 
-
-key = b'\xbf\xc0\x85)\x10nc\x94\x02)j\xdf\xcb\xc4\x94\x9d(\x9e[EX\xc8\xd5\xbfI{\xa2$\x05(\xd5\x18'
-
-encrypt_file('to_enc.txt', key)
+# encrypt_file('to_enc.txt', key)
