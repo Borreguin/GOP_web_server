@@ -1,30 +1,39 @@
 {% extends "keen_io_dashboard/layouts/hero-twice/layout.html" %}
 {% block grid_1 %}
-
-        <div class="col-lg-4 rs_height_100" >
-            <div id="chart_1">
-                <img data-src="holder.js/100%x480/white/text:#chart_1">
-            </div>
+    <div class="col-lg-3 rs_height_100" >
+        <div id="chart_1">
+            <img data-src="holder.js/100%x480/white/text:#chart_1">
         </div>
-        <div class="col-lg-8 rs_height_100">
-            <div id="chart_2">
-                <img data-src="holder.js/100%x480/white/text:#chart_2">
-            </div>
+    </div>
+    <div class="col-lg-9 rs_height_100">
+        <div id="chart_2">
+            <img data-src="holder.js/100%x480/white/text:#chart_2">
         </div>
-
+    </div>
 {% endblock %}
+
+{% block head_scripts %}
+    <script>
+        let data_panel = JSON.parse('{{ data_panel | tojson | safe}}');
+        //let text_encriptado = {{ text_encriptado }};
+    </script>
+{% endblock %}
+
 {% block body_scripts %}
     <script type="text/javascript" src="/static/my_js/panel_icon.js"></script>
+    <script type="text/javascript" src="/static/my_js/pool.js"></script>
     <script>
 
-    let data_panel = [
-        {'id': 0, 'tag': 'tag1', 'label': 'Producción total', 'icon': 'static/my_icons/electrical/foco.png', 'color': 'red'},
-        {'id': 1, 'tag': 'tag2', 'label': 'EXPORTACIÓN', 'icon': 'static/my_icons/electrical/torre.png', 'color': 'blue'},
-        {'id': 2, 'tag': 'tag3', 'label': 'Hidráulica', 'icon': 'static/my_icons/electrical/hidroelectrica.png', 'color': 'green'},
-        {'id': 3, 'tag': 'tag3', 'label': 'Otra Generación', 'icon': 'static/my_icons/electrical/termoelectrica.png', 'color': 'magenta'},
-        {'id': 4, 'tag': 'tag3', 'label': 'No convencional', 'icon': 'static/my_icons/electrical/renovable.png', 'color': 'black'}
-    ];
-        draw_panel("#chart_1", data_panel)
+    queue()
+    .defer(draw_panel, "#chart_1", data_panel)  //draw_panel("#chart_1", data_panel)
+    .await(loading_values);         //get_values('value_stripe')
+
+    function loading_values() {
+        x = 5; //refresh each x seconds
+        update_values_for('value_stripe');
+        setTimeout(loading_values, x*1000);
+    }
+
     </script>
 {% endblock %}
 

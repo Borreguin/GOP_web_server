@@ -12,8 +12,14 @@
         <script type="text/javascript" src="/static/my_js/map_util.js"></script>
 		<script>
             console.log("Starting Ecuador map...");
-            make_map("#grid_1", "all");
-            assign_color(map_config);
-            assign_function();
+
+            queue()
+                .defer(make_map, "#grid_1", "all")
+                .await(config_map);
+
+            function config_map() {
+                assign_color(map_config);
+                assign_function();
+            }
         </script>
 {% endblock %}

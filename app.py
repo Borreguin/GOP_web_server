@@ -1,7 +1,12 @@
-from flask import Flask, flash, redirect, render_template, request, session, abort
+import datetime
+import random
+
+import binascii
+import numpy as np
+from flask import Flask, flash, redirect, render_template, request, session, abort, jsonify
 import json
 import pandas as pd
-from Crypto.Cipher import AES
+import library_encrypt as en
 
 # default code
 app = Flask(__name__)
@@ -71,8 +76,44 @@ def test_dashboard():
     titles = {'sbt1': 'PRODUCCIÓN ENERGÉTICA (MWh)', 'sbt2': 'CURVA DE GENERACIÓN (MW)'}
     notes = {'nt1': 'Información preliminar, actualizada horariamente <br> Fuente: SCADA - CENACE',
              'nt2': 'Información preliminar, actualizada horariamente <br> Fuente: SCADA - CENACE'}
+
+    data_panel = [
+        {'id': 0, 'tag': 'tag1', 'label': 'Producción total', 'icon': 'static/my_icons/electrical/foco.png',
+         'color': 'red'},
+        {'id': 1, 'tag': 'tag2', 'label': 'EXPORTACIÓN', 'icon': 'static/my_icons/electrical/torre.png',
+         'color': 'blue'},
+        {'id': 2, 'tag': 'tag3', 'label': 'Hidráulica', 'icon': 'static/my_icons/electrical/hidroelectrica.png',
+         'color': 'green'},
+        {'id': 3, 'tag': 'tag4', 'label': 'Otra Generación', 'icon': 'static/my_icons/electrical/termoelectrica.png',
+         'color': 'magenta'},
+        {'id': 4, 'tag': 'tag5', 'label': 'No convencional', 'icon': 'static/my_icons/electrical/renovable.png',
+         'color': 'black'}
+    ]
+
+    data_panel = en.encrypt_tag_obj(data_panel)
+    # data_panel = en.decrypt_tag_obj(data_panel)
     return render_template('pages/ds_demanda.html',
-                           links=links, title=title, titles=titles, notes=notes)
+                           links=links, title=title, titles=titles, notes=notes, data_panel=data_panel)
+
+# ______________________________________________________________________________________________________
+# __________________________________ WEB SERVICES FUNCTIONS ____________________________________________
+
+
+@app.route("/tag/<string:tag_id>")
+def get_snapshot(tag_id):
+    try:
+        tagname = en.decrypt(tag_id)
+    except binascii.Error:
+        tagname = 'Not encrypted'
+
+    # connect with PI-Server
+    result = {
+        'id': tag_id,
+        'tag': tagname,
+        'timestamp': datetime.datetime.now(),
+        'value': round(100*random.random(),2)
+    }
+    return jsonify(result)
 
 
 if __name__ == '__main__':

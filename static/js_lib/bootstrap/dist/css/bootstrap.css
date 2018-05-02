@@ -3862,7 +3862,7 @@ select[multiple].input-group-sm > .input-group-btn > .btn {
        -o-transform: translate3d(0, 0, 0);
           transform: translate3d(0, 0, 0);
 }
-@media (min-width: 768px) {
+@media (min-width: 500px) {
   .navbar-fixed-top,
   .navbar-fixed-bottom {
     border-radius: 0;
@@ -3882,7 +3882,7 @@ select[multiple].input-group-sm > .input-group-btn > .btn {
   float: left;
   height: 50px;
   padding: 15px 15px;
-  font-size: 24px;
+  font-size: 22px;
   line-height: 20px;
 
 }
@@ -3934,7 +3934,7 @@ select[multiple].input-group-sm > .input-group-btn > .btn {
   line-height: 20px;
 
 }
-@media (max-width: 767px) {
+@media (max-width: 500px) {
   .navbar-nav .open .dropdown-menu {
     position: static;
     float: none;

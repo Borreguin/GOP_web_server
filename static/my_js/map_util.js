@@ -22,7 +22,7 @@ function define_map(new_margin, new_width, new_height) {
 }
 
 
-function make_map(to_plot, to_select) {
+function make_map(to_plot, to_select, callback) {
 
     placeToPlot = to_plot;
 
@@ -92,6 +92,9 @@ function make_map(to_plot, to_select) {
             .append("svg:title")
             .text(function() { return paths[id].title; });
     }
+
+    // when all is done then return callback to say that all was done:
+    callback(null);
 }
 
 function assign_color(map_information) {
