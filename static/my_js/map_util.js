@@ -1,3 +1,9 @@
+/**
+ * Created by Roberto on 5/1/2018.
+ * Este proyecto ha sido desarrollado en la Gerencia de Operaciones de CENACE
+ * Mateo 6:33
+ */
+
 /* ########################################################################### */
 // The following are parameter by default:
 

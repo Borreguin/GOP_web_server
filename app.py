@@ -1,12 +1,16 @@
+""" coding: utf-8
+Created by rsanchez on 03/05/2018
+Este proyecto ha sido desarrollado en la Gerencia de Operaciones de CENACE
+Mateo633
+"""
 import datetime
 import random
-
+from my_lib.PI_connection import pi_connect as PI
 import binascii
-import numpy as np
-from flask import Flask, flash, redirect, render_template, request, session, abort, jsonify
+from flask import Flask, render_template, jsonify
 import json
 import pandas as pd
-import library_encrypt as en
+from encrypt import library_encrypt as en
 
 # default code
 app = Flask(__name__)
@@ -77,21 +81,11 @@ def test_dashboard():
     notes = {'nt1': 'Información preliminar, actualizada horariamente <br> Fuente: SCADA - CENACE',
              'nt2': 'Información preliminar, actualizada horariamente <br> Fuente: SCADA - CENACE'}
 
-    data_panel = [
-        {'id': 0, 'tag': 'tag1', 'label': 'Producción total', 'icon': 'static/my_icons/electrical/foco.png',
-         'color': 'red'},
-        {'id': 1, 'tag': 'tag2', 'label': 'EXPORTACIÓN', 'icon': 'static/my_icons/electrical/torre.png',
-         'color': 'blue'},
-        {'id': 2, 'tag': 'tag3', 'label': 'Hidráulica', 'icon': 'static/my_icons/electrical/hidroelectrica.png',
-         'color': 'green'},
-        {'id': 3, 'tag': 'tag4', 'label': 'Otra Generación', 'icon': 'static/my_icons/electrical/termoelectrica.png',
-         'color': 'magenta'},
-        {'id': 4, 'tag': 'tag5', 'label': 'No convencional', 'icon': 'static/my_icons/electrical/renovable.png',
-         'color': 'black'}
-    ]
-
+    data_panel = pd.read_excel("static/app_data/produccion_energetica/produccion_energetica.xlsx")
+    data_panel = data_panel.to_dict('register')
     data_panel = en.encrypt_tag_obj(data_panel)
     # data_panel = en.decrypt_tag_obj(data_panel)
+
     return render_template('pages/ds_demanda.html',
                            links=links, title=title, titles=titles, notes=notes, data_panel=data_panel)
 
@@ -104,14 +98,18 @@ def get_snapshot(tag_id):
     try:
         tagname = en.decrypt(tag_id)
     except binascii.Error:
-        tagname = 'Not encrypted'
+        msg = 'Tag no encriptada'
+        print('get_snapshot:' + msg)
+        return jsonify({"error": msg})
 
     # connect with PI-Server
+    pi_server = PI.PIServer('UIOSEDE-COMBAP')
+    snapshot = pi_server.get_tag_snapshot(tagname)
     result = {
         'id': tag_id,
         'tag': tagname,
-        'timestamp': datetime.datetime.now(),
-        'value': round(100*random.random(),2)
+        'timestamp': snapshot.timestamp,
+        'value': round(snapshot.value,2)
     }
     return jsonify(result)
 

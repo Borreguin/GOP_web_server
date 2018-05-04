@@ -28,3 +28,7 @@ E:\GOP_WebServer\venv\Scripts\python.exe "C:\Program Files\JetBrains\PyCharm 201
 
 E:\GOP_WebServer\venv\Scripts\python.exe "C:\Program Files\JetBrains\PyCharm 2017.1.5\helpers\pydev\pydevconsole.py"
 --module --multiproc --qt-support=auto --client 127.0.0.1 --port 60060 --file flask run
+
+Create sql-classes:
+run in the cmd, and copy the 'model' file to classes folder:
+sqlacodegen mssql+pymssql://sivo:sivoer@DOP-WKSTAADO:1433/sivo --outfile models.py

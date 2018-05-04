@@ -15,7 +15,7 @@ def connect_to_PIserver_by_SDK():
             print("{0}\t:: DEFAULT::".format(server.Name))
         else:
             print(server.Name)
-        tag = server.PIPoints("ENERGIA_MOLINO_A_GENERACION_CAL__PI.AV")
+        tag = server.PIPoints("sinusoid")
         # or tag = server.PIPoints.Item("sinusoid")
         print("\t", tag.PointAttributes("tag").Value)
         print("\t", tag.Data.Snapshot.Value)

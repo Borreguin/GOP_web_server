@@ -15,7 +15,6 @@
 {% block head_scripts %}
     <script>
         let data_panel = JSON.parse('{{ data_panel | tojson | safe}}');
-        //let text_encriptado = {{ text_encriptado }};
     </script>
 {% endblock %}
 
@@ -29,7 +28,7 @@
     .await(loading_values);         //get_values('value_stripe')
 
     function loading_values() {
-        x = 5; //refresh each x seconds
+        x = 30; //refresh each x seconds
         update_values_for('value_stripe');
         setTimeout(loading_values, x*1000);
     }

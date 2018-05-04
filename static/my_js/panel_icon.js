@@ -1,3 +1,9 @@
+/**
+ * Created by Roberto on 5/1/2018.
+ * Este proyecto ha sido desarrollado en la Gerencia de Operaciones de CENACE
+ * Mateo 6:33
+ */
+
 let stripe_per_size = 0.5;
 let stripe_class = "text_stripe";
 let value_class = "value_stripe";

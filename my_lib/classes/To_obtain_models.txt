@@ -1,0 +1,3 @@
+run the following in the cmd:
+
+sqlacodegen mssql+pymssql://sivo:sivoer@DOP-WKSTAADO:1433/sivo --outfile new_models.py
