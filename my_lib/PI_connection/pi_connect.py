@@ -3,73 +3,227 @@ Created by rsanchez on 03/05/2018
 Este proyecto ha sido desarrollado en la Gerencia de Operaciones de CENACE
 Mateo633
 """
-import pywintypes
-from win32com.client.dynamic import Dispatch
-import time
 
-class PIServer:
-    def __init__(self, server_name):
-        self.server_name = server_name
-        self.server = self.server_connection()
+import pandas as pd
+import sys
+import clr
+import datetime
 
-    def server_connection(self):
-        """
-        Allows the connection to the PIserver using PI SDK via pywin32.
-        :param server_name: The name of the PIserver
-        :return: server object
-        """
-        pl = Dispatch("PISDK.PISDK")
-        # Find the wished server in the list of registered servers:
-        registered_servers = list()
-        for server in pl.Servers:
-            if self.server_name == "default":
-                if server.Name == pl.Servers.DefaultServer.Name:
-                    # print("{0}\t:: Connected ::".format(server.Name))
-                    return server
-            else:
-                if server.Name == self.server_name:
-                    # print("{0}\t:: Connected ::".format(server.Name))
-                    return server
-            registered_servers.append(server.Name)
-        print("No existe servidor registrado con el nombre: {0} \n"
-              "Los servidores registrados son: {1}".format(self.server_name, registered_servers))
-        return None
+sys.path.append(r'C:\Program Files (x86)\PIPC\AF\PublicAssemblies\4.0')
+clr.AddReference('OSIsoft.AFSDK')
 
-    def get_tag_object(self, tag_name):
-        """
-        if a tag_name exists in the server then returns a tag object
-        otherwise None
-        :param tag_name:     name of the PI Tag
-        :return:             tag object
-        """
+from OSIsoft.AF import *
+from OSIsoft.AF.PI import *
+from OSIsoft.AF.Asset import *
+from OSIsoft.AF.Data import *
+from OSIsoft.AF.Time import *
+from OSIsoft.AF.UnitsOfMeasure import *
 
+
+class PIserver:
+    def __init__(self, ):
+        piServers = PIServers()
+        self.server = piServers.DefaultPIServer
+
+    def find_PI_point(self, tag_name):
+        """
+        Find a PI_point in PIserver
+        :param tag_name: name of the tag
+        :return: PIpoint
+        """
+        pt = None
         try:
-            tag=self.server.PIPoints(tag_name)
-            return tag
-        except pywintypes.com_error:
-            print("[get_tag_object] [{0}] does not exist".format(tag_name))
-            return None
+            pt = PIPoint.FindPIPoint(self.server, tag_name)
+        except:
+            print("[pi_connect] [{0}] not found".format(tag_name))
+        return pt
 
-    def get_tag_snapshot(self, tag_name):
+    @staticmethod
+    def time_range(ini_time, end_time):
+        """
+        AFTimeRange
+        :param ini_time: initial time (yyyy-mm-dd HH:MM:SS)
+        :param end_time: ending time (yyyy-mm-dd HH:MM:SS)
+        :return: AFTimeRange
+        """
+        timerange = None
+        try:
+            timerange = AFTimeRange(ini_time, end_time)
+        except:
+            print("[pi_connect] [{0}, {1}] no correct format".format(ini_time, end_time))
+        return timerange
 
-        tag = self.get_tag_object(tag_name)
-        if tag is None: return Snapshot(0, -1)
+    def time_range_for_today(self,):
+        """
+        Time range of the current day from 0:00 to current time
+        :return:
+        """
+        dt = datetime.datetime.now()
+        str_td = dt.strftime("%Y-%m-%d")
+        return AFTimeRange(str_td, str(dt))
+
+
+    @staticmethod
+    def span(delta_time):
+        """
+        AFTimeSpan object
+        :param delta_time: ex: "30m"
+        :return: AFTimeSpan object
+        """
+        span = None
+        try:
+            span = AFTimeSpan.Parse(delta_time)
+        except:
+            print("[pi_connect] [{0}] no correct format".format(ini_time, end_time))
+        return span
+
+    def interpolated_of_tag_list(self, tag_list, time_range, span):
+        """
+        Return a DataFrame that contains the values of each tag in column
+        and the timestamp as index
+        :param tag_list: list of tags
+        :param time_range: PIServer.time_range
+        :param span: PIServer.span
+        :return: DataFrame
+        """
+        piPoints = list()
+        for tag in tag_list:
+            piPoints.append(PI_point(self, tag))
+
+        df_result = piPoints[0].interpolated(time_range, span, as_df=True, numeric=False)
+
+        for piPoint in piPoints[1:]:
+            df_result = pd.concat([df_result, piPoint.interpolated(time_range, span, numeric=False)], axis=1)
+
+        return df_result
+
+class PI_point():
+
+    def __init__(self, server, tag_name):
+        assert isinstance(server, PIserver)
+        self.server = server
+        self.tag_name = tag_name
+        self.pt = server.find_PI_point(tag_name)
+
+    def interpolated(self, time_range, span, as_df=True, numeric=True):
+        """
+        returns the interpolate values of a PIpoint
+        :param as_df: return as DataFrame
+        :param time_range: PIServer.time_range
+        :param span: PIServer.span
+        :return: returns the interpolate values of a PIpoint
+        """
+        values = None
+        try:
+            values = self.pt.InterpolatedValues(time_range, span, "", False)
+        except:
+            print("[pi_connect] [{0}, {1}] no correct object".format(timerange, span))
+        if as_df:
+            values = to_df(values, self.tag_name, numeric=numeric)
+        return values
+
+    def plot_values(self, time_range, n_samples, as_df=True, numeric=True):
+        """
+        n_samples of the tag in time range
+        :param as_df: return as DataFrame
+        :param time_range:  PIServer.timerange
+        :param n_samples:
+        :return: OSIsoft.AF.Asset.AFValues
+        """
+        values = None
+        try:
+            values = self.pt.PlotValues(time_range, n_samples)
+        except:
+            print("[pi_connect] [{0}, {1}] no correct object".format(time_range, n_samples))
+        if as_df:
+            values = to_df(values, self.tag_name, numeric)
+        return values
+
+    def recorded_values(self, time_range, AFBoundary=AFBoundaryType.Inside, as_df=True, numeric=True):
+        """
+        recorded values for a tag
+        :param as_df: return as DataFrame
+        :param time_range: PIServer.time_range
+        :param AFBoundary: AFBoundary
+        :return: OSIsoft.AF.Asset.AFValues
+        """
+        values = None
+        try:
+            values = self.pt.RecordedValues(time_range, AFBoundary, "", False)
+        except:
+            print("[pi_connect] [{0}, {1}] no correct object".format(time_range, n_samples))
+        if as_df:
+            values = to_df(values, self.tag_name, numeric)
+        return values
+
+    def summaries(self, time_range, span, AFSummaryTypes=AFSummaryTypes.Average,
+                  AFCalculationBasis=AFCalculationBasis.TimeWeighted,
+                  AFTimestampCalculation=AFTimestampCalculation.Auto):
+        """
+        Returns a list of summaries
+        :param as_df: return as DataFrame
+        :param time_range: PIServer.time_range
+        :param span: PIServer.span
+        :param AFSummaryTypes:
+        :param AFCalculationBasis:
+        :param AFTimestampCalculation:
+        :return: Returns a list of summaries
+        """
+        values = None
+        try:
+            values = self.pt.Summaries(time_range, span, AFSummaryTypes,
+                                       AFCalculationBasis,
+                                       AFTimestampCalculation)
+        except:
+            print("[pi_connect] [{0}, {1}, {2}] no correct object".format(time_range, span, AFSummaryTypes))
+
+        return values
+
+    def snapshot(self):
+        return self.pt.Snapshot()
+
+    def current_value(self):
+        return self.pt.CurrentValue()
+
+def to_df(values, tag, numeric=True):
+    """
+    returns a DataFrame based on PI values
+    :param values: PI values
+    :param tag: name of the PI tag
+    :return: DataFrame
+    """
+    df = pd.DataFrame()
+    try:
+        timestamp = [x.Timestamp.ToString("yyyy-MM-dd HH:mm:s") for x in values]
+        df = pd.DataFrame(index=pd.to_datetime(timestamp))
+        if numeric:
+            df[tag] = pd.to_numeric([x.Value for x in values], errors='coerce')
         else:
-            return Snapshot(
-                tag.Data.Snapshot.TimeStamp.UTCseconds,
-                tag.Data.Snapshot.Value
-            )
+            df[tag] = [x.Value for x in values]
+    except:
+        print("[pi_connect] [{0}] to pdf".format(values))
+    return df
 
 
-class Snapshot():
-    """
-    This class represent a snapshot of a PI Tag
-    """
-    def __init__(self, timestamp, value):
-        """
-        Snapshot of a PI Tag
-        :param timestamp:   timestamp in time.localtime (UTCseconds)
-        :param value:       value of the tag
-        """
-        self.timestamp = time.localtime(timestamp)
-        self.value = value
+def test():
+    pi_svr = PIserver()
+    tag_name = "CAL_DIST_QUITO_P.CARGA_TOT_1_CAL.AV"
+    pt = PI_point(pi_svr, tag_name)
+    time_range = pi_svr.time_range("2018-02-12", "2018-02-14")
+    time_range2 = pi_svr.time_range_for_today()
+    span = pi_svr.span("30m")
+    df1 = pt.interpolated(time_range, span)
+    df2 = pt.plot_values(time_range, 200)
+    df3 = pt.recorded_values(time_range2)
+    value1 = pt.snapshot()
+    value2 = pt.current_value()
+
+    tag_list = ['JAMONDIN230POMAS_1_P.LINEA_ICC.AV', 'POMASQUI230JAMON_1_P.LINEA_RDV.AV',
+                'JAMONDIN230POMAS_1_P.LINEA_ICC.AQ', 'POMASQUI230JAMON_1_P.LINEA_RDV.AQ']
+    df1 = pi_svr.interpolated_of_tag_list(tag_list, time_range, span)
+    df1.plot()
+    df2.plot()
+    df3.plot()
+
+
+test()

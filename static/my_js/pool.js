@@ -8,10 +8,11 @@ let class_;
 function update_values_for(class_to_refresh){
     class_ = class_to_refresh;
     let tags_div = d3.selectAll("." + class_);
-    let tags = tags_div[0];
+    let tags = tags_div["_groups"][0]; // d3_v4 !!
     // console.log(tags);
     for(let t in tags){
-        if(t === 'parentNode'){continue;}
+        if( !Number.isInteger(parseInt(t))){continue;}
+        // console.log(t);
         let id = tags[t].id;
             let url = '/tag/' + id;
             queue()
@@ -23,8 +24,39 @@ function update_values_for(class_to_refresh){
 function update_value(error, json_data) {
     let id = json_data.id;
     let value = json_data.value;
-    let t = json_data.timestamp;
-    current_timestamp = new Date(t[0], t[1], t[2], t[3], t[4], t[5], t[6]);
-    console.log(current_timestamp);
+    try{
+        value = numberWithSpaces(value);
+    }catch (e) {
+        
+    }
+    // console.log(current_timestamp);
     d3.select('[id="'+id+'"]').text(value);
+
+    current_timestamp = get_time();
 }
+
+function get_time() {
+    let ct = new Date();
+    let options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    return (ct.toLocaleDateString("es-US",options) + ", " + ct.toLocaleTimeString());
+}
+
+function capitalizeFirstLetter(string) {
+    try{
+        return string.charAt(0).toUpperCase() + string.slice(1);
+    }catch (e) {
+        return string;
+    }
+}
+
+function update_time(id) {
+    d3.select('[id="'+ id +'"]').text(
+        capitalizeFirstLetter(current_timestamp)
+    );
+}
+
+const numberWithSpaces = (x) => {
+  let parts = x.toString().split(".");
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return parts.join(".");
+};

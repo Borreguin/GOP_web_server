@@ -1,0 +1,57 @@
+/* Add shadow effect to chart. If you don't like it, get rid of it. */
+svg {
+    -webkit-filter: drop-shadow( 0px 3px 3px rgba(0,0,0,.3) );
+    filter: drop-shadow( 0px 3px 3px rgba(0,0,0,.25) );
+}
+
+/*Styling for the lines connecting the labels to the slices*/
+polyline{
+    opacity: .3;
+    stroke: black;
+    stroke-width: 2px;
+    fill: none;
+    shape-rendering: geometricPrecision;
+}
+
+/* styling for the donut slices*/
+path {
+    shape-rendering: geometricPrecision;
+}
+
+/* Make the percentage on the text labels bold*/
+.labelName tspan {
+    font-style: normal;
+    font-weight: 700;
+}
+
+/* In biology we generally italicise species names. */
+.labelName {
+    font-size: 0.8em;
+    font-style: italic;
+}
+
+div{
+    text-anchor: middle;
+    font-weight: bold;
+    color: white;
+}
+.inner_circle{
+    font-size: 1.2em;
+
+}.main_inner_circle{
+    font-size: 3em;
+    color: white;
+ }
+
+tspan{
+    font-family: "Trebuchet MS", Helvetica, sans-serif;
+}
+.innerlabel{
+    font-weight: bold;
+    text-transform: uppercase;
+    fill: white;
+ }
+.main_inner_circle{
+    font-size: 3em;
+    fill: white;
+ }

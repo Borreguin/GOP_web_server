@@ -5,6 +5,7 @@
       <option name="ignoredIdentifiers">
         <list>
           <option value="pywintypes.com_error" />
+          <option value="PI_connection.pi_connect.*" />
         </list>
       </option>
     </inspection_tool>

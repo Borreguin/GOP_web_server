@@ -14,7 +14,9 @@ let margin = {
         left: 5
 };
 
-let current_timestamp = new Date();
+let ct = new Date();
+let options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+let current_timestamp = ct.toLocaleDateString("es-US",options) + ", " + ct.toLocaleTimeString();
 let bar_size = 160;
 let w = $(document).width();
 let h = $(document).height();

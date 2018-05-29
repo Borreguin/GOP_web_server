@@ -5,9 +5,11 @@ Mateo633
 """
 import datetime
 import random
-from my_lib.PI_connection import pi_connect as PI
+from my_lib.PI_connection import pi_connect as osi
+from my_lib.calculations import calculos as cal
+from my_lib.calculations import consultas as con
 import binascii
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, redirect
 import json
 import pandas as pd
 from encrypt import library_encrypt as en
@@ -36,6 +38,7 @@ def hello_world():
 def test_page():
     """ Tests the use of templates and layouts"""
     school = {"school_name": 'prueba 1', "total_students": 32}
+    print(en.encrypt("/cal/energy_production"))
     return render_template('test/show_test.html', school=school)
 
 
@@ -78,16 +81,21 @@ def create_map():
 def test_dashboard():
     title = "Información Operativa en Tiempo Real"
     titles = {'sbt1': 'PRODUCCIÓN ENERGÉTICA (MWh)', 'sbt2': 'CURVA DE GENERACIÓN (MW)'}
-    notes = {'nt1': 'Información preliminar, actualizada horariamente <br> Fuente: SCADA - CENACE',
-             'nt2': 'Información preliminar, actualizada horariamente <br> Fuente: SCADA - CENACE'}
+    notes = {'nt1': 'Información preliminar, actualizada cada 30 minutos <br> Fuente: SCADA - CENACE',
+             'nt2': 'Información preliminar, actualizada cada 30 minutos <br> Fuente: SCADA - CENACE'}
 
+    # Configurations for icon panel:
     data_panel = pd.read_excel("static/app_data/produccion_energetica/produccion_energetica.xlsx")
     data_panel = data_panel.to_dict('register')
     data_panel = en.encrypt_tag_obj(data_panel)
     # data_panel = en.decrypt_tag_obj(data_panel)
 
+    # data for donut
+    data_donut = cal.energy_production()
     return render_template('pages/ds_demanda.html',
-                           links=links, title=title, titles=titles, notes=notes, data_panel=data_panel)
+                           links=links, title=title, titles=titles, notes=notes, data_panel=data_panel
+                           , data_donut=data_donut)
+
 
 # ______________________________________________________________________________________________________
 # __________________________________ WEB SERVICES FUNCTIONS ____________________________________________
@@ -102,18 +110,88 @@ def get_snapshot(tag_id):
         print('get_snapshot:' + msg)
         return jsonify({"error": msg})
 
+    if '/cal/' in tagname or '/con/' in tagname:
+        n = tagname[6:].find('/')
+        params = None
+        if n == -1:
+            method = tagname[5:]
+        else:
+            method = tagname[5:n + 6]
+            params = tagname[n + 7:]
+
+        # if the request is calculated:
+        if '/cal/' in tagname:
+            return get_cal(method, params, tag_id)
+
+        # if the request is a query:
+        if '/con/' in tagname:
+            return get_cons(method, params, tag_id)
+
     # connect with PI-Server
-    pi_server = PI.PIServer('UIOSEDE-COMBAP')
-    snapshot = pi_server.get_tag_snapshot(tagname)
+    pi_svr = osi.PIserver()
+    pt = osi.PI_point(pi_svr, tagname)
     result = {
         'id': tag_id,
         'tag': tagname,
-        'timestamp': snapshot.timestamp,
-        'value': round(snapshot.value,2)
+        'timestamp': pt.current_value().Timestamp.ToString(),
+        'value': round(pt.current_value().Value, 2)
     }
     return jsonify(result)
 
 
+@app.route("/cal/<string:cal_id_function>")
+@app.route("/cal/<string:cal_id_function>/<string:parameters>")
+def get_cal(cal_id_function, parameters=None, id_encrypt=None):
+
+    try:
+        method_to_call = getattr(cal, cal_id_function)
+        if parameters is None:
+            result = method_to_call()
+        else:
+            params = parameters.split("&")
+            result = method_to_call(*params)
+
+        if isinstance(result, dict):
+            result['id'] = id_encrypt
+
+        return jsonify(result)
+
+    except AttributeError:
+        msg = "There is not function: " + cal_id_function + " in module calc"
+        print(msg)
+        return jsonify({"error": msg})
+
+
+@app.route("/con/<string:cons_id_function>")
+@app.route("/con/<string:cons_id_function>/<string:parameters>")
+def get_cons(cons_id_function, parameters=None, id_encrypt=None):
+
+    try:
+        method_to_call = getattr(con, cons_id_function)
+        if parameters is None:
+            result = method_to_call()
+        else:
+            params = parameters.split("&")
+            result = method_to_call(*params)
+
+        if isinstance(result, dict):
+            result['id'] = id_encrypt
+
+        return jsonify(result)
+
+    except AttributeError:
+        msg = "There is not function: " + cons_id_function + " in module cons"
+        print(msg)
+        return jsonify({"error": msg})
+
+    except TypeError:
+        msg = "There is not match between the function and the parameters"
+        print(msg)
+        return jsonify({"error": msg})
+
+
+
 if __name__ == '__main__':
     # app.run(host='10.30.2.45', port=5000)
+
     app.run()

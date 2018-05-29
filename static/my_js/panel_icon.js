@@ -63,7 +63,7 @@ function draw_panel(to_plot, data_panel, callback) {
         .append("xhtml:body")
         .style("background-color", "transparent")
         .html( function (d) {
-            let y_scale = d3.scale.linear().domain([200 , 1000]).range([0.82, 1.5]);
+            let y_scale = d3.scaleLinear().domain([200 , 1000]).range([0.82, 1.5]);
             let font_size =  stripe_height*0.4*y_scale(stripe_width);
             if(d.label.length > 14 && d.label.length < 24 ){
                 font_size = stripe_height*0.37*y_scale(stripe_width);
