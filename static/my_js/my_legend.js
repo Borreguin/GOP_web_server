@@ -33,15 +33,16 @@ function create_legend(to_plot, legend_data, w_legend, h_legend, legend_colour) 
         .style('height', (cell_height) + "px")
         .style('width', icon_width + "px")
         .attr('class', 'square_legend')
-        .style('background-color', function (d) {
-            return legend_colour(d.label);
-        });
+        .style('background-color', function (d) {return legend_colour(d.id);});
 
+    font_size_scale = scaleLinear({domain:[10, 24],range:[62.5, 170]});
+    f_scale =  Math.max(70, font_size_scale(cell_height));
     // adding labels:
     let labels = cell.append('div')
         .attr("class", "text_legend")
         .style("color", "black")
         .style('height', cell_height + "px")
+        .style("font-size", f_scale + "%")
         .style('width', (w_legend*0.97 - icon_width ) + "px" )
         .text(function (d) {
            return d.label;

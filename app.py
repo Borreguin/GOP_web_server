@@ -13,7 +13,8 @@ from flask import Flask, render_template, jsonify, redirect
 import json
 import pandas as pd
 from encrypt import library_encrypt as en
-
+import os
+script_path = os.path.dirname(os.path.abspath(__file__))
 # default code
 app = Flask(__name__)
 
@@ -92,9 +93,17 @@ def test_dashboard():
 
     # data for donut
     data_donut = cal.energy_production()
+    
+    # data for hydro_bar:
+    data_bar_hydro = cal.generation_detail_now(['Embalse', 'Pasada'])
+
+    # data for otra generacion bar:
+
+    data_bar_otra = cal.other_generation_detail_now()
+
     return render_template('pages/ds_demanda.html',
                            links=links, title=title, titles=titles, notes=notes, data_panel=data_panel
-                           , data_donut=data_donut)
+                           , data_donut=data_donut, data_bar_hydro=data_bar_hydro, data_bar_otra=data_bar_otra)
 
 
 # ______________________________________________________________________________________________________
@@ -107,7 +116,7 @@ def get_snapshot(tag_id):
         tagname = en.decrypt(tag_id)
     except binascii.Error:
         msg = 'Tag no encriptada'
-        print('get_snapshot:' + msg)
+        print('[get_snapshot]:' + msg)
         return jsonify({"error": msg})
 
     if '/cal/' in tagname or '/con/' in tagname:
@@ -156,9 +165,10 @@ def get_cal(cal_id_function, parameters=None, id_encrypt=None):
 
         return jsonify(result)
 
-    except AttributeError:
-        msg = "There is not function: " + cal_id_function + " in module calc"
-        print(msg)
+    except Exception as e:
+        print(e)
+        msg = "[get_cal] [{0}] There is a error in module calc".format(cal_id_function)
+        print("[" + script_path + "] \t" + msg)
         return jsonify({"error": msg})
 
 
@@ -179,16 +189,11 @@ def get_cons(cons_id_function, parameters=None, id_encrypt=None):
 
         return jsonify(result)
 
-    except AttributeError:
-        msg = "There is not function: " + cons_id_function + " in module cons"
-        print(msg)
+    except Exception as e:
+        print(e)
+        msg = "[get_cons] [{0}] There is an error in module cons".format(cons_id_function)
+        print("[" + script_path + "] \t" + msg)
         return jsonify({"error": msg})
-
-    except TypeError:
-        msg = "There is not match between the function and the parameters"
-        print(msg)
-        return jsonify({"error": msg})
-
 
 
 if __name__ == '__main__':

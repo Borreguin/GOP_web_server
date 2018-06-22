@@ -58,20 +58,21 @@ function draw_panel(to_plot, data_panel, callback) {
         .attr("class", "col-sm-8 btn btn-primary")
         .style('height', stripe_height + "px")
         .style('width', stripe_width + "px" )
+        .style('padding', 2 + "px" )
         .style('background-color', function (d) {return d.color})
         .style('border-color', function (d) {return d.color})
         .append("xhtml:body")
         .style("background-color", "transparent")
         .html( function (d) {
-            let y_scale = d3.scaleLinear().domain([200 , 1000]).range([0.82, 1.5]);
+            let y_scale = scaleLinear({domain:[200 , 1000], range: [0.82, 1.3]});
             let font_size =  stripe_height*0.4*y_scale(stripe_width);
-            if(d.label.length > 14 && d.label.length < 24 ){
-                font_size = stripe_height*0.37*y_scale(stripe_width);
-            }else if( d.label.length > 24){
+            if(d.label.length > 10 && d.label.length <= 22 ){
                 font_size = stripe_height*0.35*y_scale(stripe_width);
+            }else if( d.label.length > 22){
+                font_size = stripe_height*0.31*y_scale(stripe_width);
             }
             return '<div' +
-                ' style="width:'+ (stripe_width-12)  + 'px;' +
+                ' style="width:'+ (stripe_width-8)  + 'px;' +
                 ' font-size:'+ font_size +'px"' +
                 ' class="' + stripe_class + '"' +
                 '>'

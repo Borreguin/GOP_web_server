@@ -8,6 +8,8 @@ import pymssql
 import pandas as pd
 from my_lib.encrypt.library_encrypt import *
 import pickle
+import os
+script_path = os.path.dirname(os.path.abspath(__file__))
 
 
 class GOPserver:
@@ -56,10 +58,11 @@ class GOPserver:
 def get_conn():
 
     try:
-        path = "./st.pkl"
+        path = script_path + '\\' + "st.pkl"
         with open(path, 'rb') as pickle_file:
             ps = pickle.load(pickle_file)
-    except:
+    except Exception as e:
+        print(e)
         path = "./my_lib/GOP_connection/st.pkl"
         with open(path, 'rb') as pickle_file:
             ps = pickle.load(pickle_file)

@@ -1,0 +1,91 @@
+.mytooltip, .mytooltip_down, .mytooltip_left, .mytooltip_right {
+  position: fixed;
+  text-align: center;
+  width: auto;
+  height:auto;
+  background-color: #e6e6e6;
+  border-radius: 2px;
+  padding: 3px 3px;
+  z-index: 3;
+}
+
+.mytooltip:after, .mytooltip_down:after, .mytooltip_left:after, .mytooltip_right:after {
+	box-sizing: border-box;
+	display: inline;
+	width: 20px;
+	line-height: 1;
+	color: #e6e6e6;
+	position: absolute;
+}
+
+.mytooltip:after {
+  content: "\25BC";
+  text-align: center;
+  margin: -4px 0 0 0;
+  top: 100%;
+  left: 0;
+}
+
+.mytooltip_down:after {
+  content: "\25B2";
+  position: absolute;
+  text-align: center;
+  margin: -9px 0 0 0;
+  top: -5px;
+  left: 0;
+}
+
+.mytooltip_right:after{
+  content: "\25C0";
+  position: absolute;
+  text-align: center;
+  margin: -9px 0 0 0;
+  top: 32px;
+  left: -15px;
+  /*border: 2px solid black;*/
+}
+
+.mytooltip_left:after{
+  content: "\25B6";
+  position: absolute;
+  text-align: center;
+  margin: -9px 0 0 0;
+  top: 50%;
+  left: 56%;
+}
+
+.mytooltip span {
+    display: block;
+    text-align: center;
+    width: auto;
+    height: auto;
+    margin: 2px auto;
+
+}
+
+.my_ballon {
+  fill: transparent;
+  opacity: 0.3;
+  stroke: black;
+  stroke-width: 1.5px;
+  stroke-dasharray: 3;
+}
+
+.my_label {
+	font-size: 1em;
+	color: black;
+    font-weight: normal;
+    font-family: "Tahoma, Geneva, sans-serif";
+}
+
+.my_container_label{
+	text-anchor: start;
+}
+
+#thumbnail {
+    width: auto;
+    height: auto;
+    margin: 0 auto;
+    color: #787777;
+    text-align: center;
+  }

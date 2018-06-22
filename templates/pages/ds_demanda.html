@@ -1,24 +1,33 @@
 {% extends "keen_io_dashboard/layouts/hero-twice/layout.html" %}
 {% block grid_1 %}
-    <div class="col-lg-3 rs_height_100" >
+    <div class="col-lg-2" >
         <div id="chart_1">
             <img data-src="holder.js/100%x480/white/text:#chart_1">
         </div>
     </div>
-    <div class="col-lg-4 rs_height_100" style="width: 25%;">
-        <div id="chart_2" class="rs_height_60">
+    <div class="col-lg-3" style="padding: 0px">
+        <div class="chart-title" style="font-style: oblique; padding: 0px">
+            DISTRIBUCIÓN DE LA PRODUCCIÓN:
+        <br><br><br><br></div>
+        <div id="chart_2">
             <img data-src="holder.js/100%x280/white/text:#chart_2">
         </div>
-        <div id="legend_2" class="rs_height_40">
+        <div id="legend_2" >
             <img data-src="holder.js/100%x100/white/text:#legend_2">
         </div>
     </div>
-    <div class="col-lg-3 rs_height_100">
-        <div id="chart_3">
+    <div class="col-lg-3_4" style="padding: 0px" >
+        <div class="chart-title" style="padding: 0px" ><br><br><br>
+            HIDRÁULICA:
+        </div>
+        <div id="chart_3" >
             <img data-src="holder.js/100%x280/white/text:#chart_3">
         </div>
     </div>
-    <div class="col-lg-3 rs_height_100">
+    <div class="col-lg-3_4" style="padding: 0px">
+        <div class="chart-title" style="padding: 0px" ><br><br><br>
+            OTRA GENERACIÓN:
+        </div>
         <div id="chart_4">
             <img data-src="holder.js/100%x280/white/text:#chart_4">
         </div>
@@ -27,53 +36,99 @@
 
 {% block head_scripts %}
     <link href="/static/my_css/donut.css" rel="stylesheet" type="text/css" />
+    <link href="/static/my_css/stacked_bar.css" rel="stylesheet" type="text/css" />
     <script>
         let data_panel = JSON.parse('{{ data_panel | tojson | safe}}');
         let data_donut = JSON.parse('{{ data_donut | tojson | safe}}');
+        let data_bar_hydro = JSON.parse('{{ data_bar_hydro | tojson | safe}}');
+        let data_bar_otra = JSON.parse('{{ data_bar_otra | tojson | safe}}');
     </script>
 {% endblock %}
 
 {% block body_scripts %}
-    <script type="text/javascript" src="/static/js_lib/d3.v4.js"></script>
+    <script type="text/javascript" src="/static/js_lib/d3.v3.5.17.js"></script>
     <script type="text/javascript" src="/static/my_js/panel_icon.js"></script>
     <script type="text/javascript" src="/static/my_js/donut.js"></script>
     <script type="text/javascript" src="/static/my_js/my_legend.js"></script>
+    <script type="text/javascript" src="/static/my_js/stacked_bar.js"></script>
     <script type="text/javascript" src="/static/my_js/pool.js"></script>
     <script>
 
+        let blue_color = color_scale(
+            ["#000046", "#0033CC", "#0066FF", "#6399FF", "#66CCFF", "#99FFFF", "#DCFFFF", "#6633DF", "#9999FF" ]);
+        let orange_color = color_scale(
+            ["#FF5500", "#FF9900", "#FFCC00", "#FFCC66",  "#FFFF99",  "#FFFFCC",  "#CC9900" , "#CCFF33" ]);
+        let myTip = d3.select("body")
+                  .append("div")
+                  .attr("class", "mytooltip_right")
+                  .style("opacity", "0")
+                  .style("display", "none");
 
-    queue()
-    .defer(draw_panel, "#chart_1", data_panel)  //draw_panel("#chart_1", data_panel)
-    .await(loading_values);
-
-    // Creating the donut chart:
-    let borders = get_height_width('#chart_2');
-    let w_donut = borders.width; let h_donut = borders.height*0.7;
-    let color_donut = d3.scaleOrdinal(d3.schemeCategory10);
-    let donut = create_donut("#chart_2", data_donut, w_donut, h_donut, color_donut);
-    donut.add_inner_label("Hidráulica");
-    //donut.add_lines();
-    //donut.add_text_labels()
-
-    // Creating legend:
-    create_legend('#legend_2', data_donut, w_donut, borders.height*0.08, color_donut);
-
-    function loading_values() {
-        x = 10; //refresh each x seconds
-        update_values_for('value_stripe');
-        update_time("fecha_actual");
-        let url = '/cal/energy_production';
         queue()
-            .defer(d3.json, url)
-            .await(update_donut);
+            .defer(draw_panel, "#chart_1", data_panel)  //draw_panel("#chart_1", data_panel)
+            .await(loading_values);
 
-        setTimeout(loading_values, x*1000);
-    }
-
-    function update_donut(error, data_donut) {
-        donut = create_donut("#chart_2", data_donut, w_donut, h_donut, color_donut);
+        // Creating the donut chart:
+        let borders = get_height_width('#chart_2');
+        let w_donut = borders.width; let h_donut = borders.height*0.7;
+        let color_donut = color_scale(["#5897DD", "#E7AC14", "#FFCC00"]);
+        let donut = create_donut("#chart_2", data_donut, w_donut, h_donut, color_donut);
         donut.add_inner_label("Hidráulica");
-    }
+        //donut.add_lines();
+        //donut.add_text_labels()
+
+        // Creating legend:
+        create_legend('#legend_2', data_donut, w_donut, borders.height*0.04, color_donut);
+
+        // values to draw the bars:
+        borders = get_height_width('#chart_3');
+        let w_bar1 = borders.width*0.85; let h_bar1 = borders.height*0.7; let borde_x = w_bar1*0.1;
+        up_date_bar1(null, data_bar_hydro);
+        up_date_bar2(null, data_bar_otra);
+
+        function loading_values() {
+            x = 100; //refresh each x seconds
+            update_values_for('value_stripe');
+            update_time("fecha_actual");
+            // UPDATE DONUT
+            let url = '/cal/energy_production';
+            queue()
+                .defer(d3.json, url)
+                .await(update_donut);
+
+            // UPDATE BAR1
+            url = '/cal/generation_detail_now/Embalse,Pasada&7';
+            queue()
+                .defer(d3.json, url)
+                .await(up_date_bar1);
+
+            // UPDATE BAR2
+            url = '/cal/other_generation_detail_now';
+            queue()
+                .defer(d3.json, url)
+                .await(up_date_bar2);
+
+            setTimeout(loading_values, x*1000);
+        }
+
+        function update_donut(error, data_donut) {
+            donut = create_donut("#chart_2", data_donut, w_donut, h_donut, color_donut);
+            donut.add_inner_label("Hidráulica");
+        }
+
+        function up_date_bar1(error, data_1){
+            // Creating the hidroelectric bar :
+            cells = draw_stk_bar("#chart_3", data_1, w_bar1, h_bar1, borde_x, blue_color);
+            add_tooltips(cells, myTip);
+            add_labels(cells);
+        }
+        function up_date_bar2(error, data_2){
+            // Creating the other generation bar :
+            cells2 = draw_stk_bar("#chart_4", data_2, w_bar1, h_bar1, borde_x, orange_color);
+            add_tooltips(cells2, myTip);
+            add_labels(cells2);
+        }
+
 
     </script>
 {% endblock %}

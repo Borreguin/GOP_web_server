@@ -8,7 +8,8 @@ let class_;
 function update_values_for(class_to_refresh){
     class_ = class_to_refresh;
     let tags_div = d3.selectAll("." + class_);
-    let tags = tags_div["_groups"][0]; // d3_v4 !!
+    //let tags = tags_div["_groups"][0]; // d3_v4 !!
+    let tags = get_groups(tags_div);
     // console.log(tags);
     for(let t in tags){
         if( !Number.isInteger(parseInt(t))){continue;}

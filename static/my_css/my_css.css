@@ -33,7 +33,6 @@ div{
 .text_legend{
     color: black;
     float: right;
-    font-size: medium;
     margin: 0.5%;
 }
 
@@ -46,7 +45,7 @@ img {
     object-fit: contain;
     display:block;
     margin: auto;
-    padding: 10px;
+    padding: 1px;
 }
 
 .portrait {
@@ -100,3 +99,26 @@ svg{
     white-space: normal;
 }
 
+.col-lg-3_4, .col-lg-4_5 {
+        position: relative;
+        min-height: 1px;
+        padding-right: 15px;
+        padding-left: 15px;
+    }
+
+@media (min-width: 1200px) {
+
+
+    .col-lg-3_4, .col-lg-4_5 {
+        float: left;
+    }
+
+    .col-lg-4_5 {
+        width: 35%;
+    }
+
+    .col-lg-3_4 {
+        width: 29.1%;
+    }
+
+}

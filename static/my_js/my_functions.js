@@ -37,3 +37,36 @@ function get_height_width(to_plot) {
     };
 }
 
+// return a scale of colors:
+function color_scale(color_list) {
+    let res_color_scale;
+    try{
+        // d3.v4:
+        res_color_scale = d3.scaleOrdinal().range(color_list);
+    }catch (e)
+    {   // d3.v3:
+        res_color_scale = d3.scale.ordinal().range(color_list);
+    }
+    return res_color_scale;
+}
+// solve problems of compatibility between d3 v4 and d3 v3
+function scaleLinear(objt){
+    let scale_res;
+    try {
+        scale_res = d3.scaleLinear().domain(objt.domain).range(objt.range);
+    }catch (e) {
+        scale_res = d3.scale.linear().domain(objt.domain).range(objt.range);
+    }
+    return scale_res;
+}
+
+function get_groups(objt) {
+    let grps;
+    try{
+        grps = objt["_groups"][0]; // d3_v4 !!
+    }
+    catch (e) {
+        grps = objt[0];  // d3_v3
+    }
+    return grps;
+}

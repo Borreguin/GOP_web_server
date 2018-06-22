@@ -37,7 +37,8 @@ function donutChart() {
         width,
         height,
         margin = {top: 10, right: 10, bottom: 10, left: 10},
-        colour = d3.scaleOrdinal(d3.schemeCategory20c), // colour scheme
+        //colour = d3.scaleOrdinal(d3.schemeCategory20c), // colour scheme
+        colour = color_scale(d3.schemeCategory20c), // colour scheme
         variable, // value in data that will dictate proportions on chart
         category, // compare data by
         padAngle, // effectively dictates the gap between slices
@@ -55,20 +56,35 @@ function donutChart() {
             var radius = Math.min(width, height) / 2;
 
             // creates a new pie generator
-            var pie = d3.pie()
+            // var pie = d3.pie()
+            var pie;
+            try{
+                pie = d3.layout.pie();  //d3 v3
+            }catch (e) {
+                pie = d3.pie(); //d3 v4
+            }
+            pie
                 .value(function(d) { return floatFormat(d[variable]); })
                 .sort(null);
 
             // contructs and arc generator. This will be used for the donut. The difference between outer and inner
             // radius will dictate the thickness of the donut
-            var arc = d3.arc()
+            // var arc = d3.arc()
+            var arc;
+            try{
+                arc = d3.svg.arc(); //d3_v3
+            }catch (e) {
+                arc = d3.arc();     //d3_v4
+            }
+            arc
                 .outerRadius(radius )
                 .innerRadius(radius * 0.8)
                 .cornerRadius(cornerRadius)
                 .padAngle(padAngle);
 
             // this arc is used for aligning the text labels
-            var outerArc = d3.arc()
+            // var outerArc = d3.arc()
+            var outerArc = d3.svg.arc()
                 .outerRadius(radius * 0.8)
                 .innerRadius(radius * 0.8);
             // ===========================================================================================
@@ -97,7 +113,7 @@ function donutChart() {
                 .selectAll('path')
                 .data(pie(data))
               .enter().append('path')
-                .attr('fill', function(d) { return colour(d.data[category]); })
+                .attr('fill', function(d) {return colour(d.data['id']);})
                 .attr('d', arc);
             // ===========================================================================================
 
@@ -139,7 +155,7 @@ function donutChart() {
                         svg.append('circle')
                             .attr('class', 'toolCircle')
                             .attr('r', radius * 0.6) // radius of tooltip circle
-                            .style('fill', colour(label)) // colour based on category mouse is over
+                            .style('fill', colour(data[d].id)) // colour based on category mouse is over
                             .style('fill-opacity', 0.9);
 
                         svg.append('text')
@@ -247,7 +263,7 @@ function donutChart() {
                     svg.append('circle')
                         .attr('class', 'toolCircle')
                         .attr('r', radius * 0.6) // radius of tooltip circle
-                        .style('fill', colour(data.data[category])) // colour based on category mouse is over
+                        .style('fill', colour(data.data.id)) // colour based on category mouse is over
                         .style('fill-opacity', 0.9);
 
                     svg.append('text')
@@ -273,6 +289,7 @@ function donutChart() {
                     i   = 0;
 
                 for (let key in data.data) {
+                    if(key === 'id'){ continue;}
                     let value = null;
                     if(key === 'percentage'){
                         // if value is a number, format it as a percentage
