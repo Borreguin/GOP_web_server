@@ -1,35 +1,35 @@
 {% extends "keen_io_dashboard/layouts/hero-twice/layout.html" %}
 {% block grid_1 %}
-    <div class="col-lg-2" >
-        <div id="chart_1">
-            <img data-src="holder.js/100%x480/white/text:#chart_1">
+    <div class="col-lg-2" style="height: 100%">
+        <div id="chart_1" style="height: 100%">
+            <img data-src="holder.js/100%x100%/white/text:#chart_1">
         </div>
     </div>
-    <div class="col-lg-3" style="padding: 0px">
+    <div class="col-lg-3" style="padding: 0px; height: 100%">
         <div class="chart-title" style="font-style: oblique; padding: 0px">
             DISTRIBUCIÓN DE LA PRODUCCIÓN:
         <br><br><br><br></div>
-        <div id="chart_2">
-            <img data-src="holder.js/100%x280/white/text:#chart_2">
+        <div id="chart_2" style="height: 70%">
+            <img data-src="holder.js/100%x100%/white/text:#chart_2">
         </div>
         <div id="legend_2" >
             <img data-src="holder.js/100%x100/white/text:#legend_2">
         </div>
     </div>
-    <div class="col-lg-3_4" style="padding: 0px" >
+    <div class="col-lg-3_4" style="padding: 0px; height: 100%" >
         <div class="chart-title" style="padding: 0px" ><br><br><br>
             HIDRÁULICA:
         </div>
-        <div id="chart_3" >
-            <img data-src="holder.js/100%x280/white/text:#chart_3">
+        <div id="chart_3" style="height: 90%;">
+            <img data-src="holder.js/100%x100%/white/text:#chart_3">
         </div>
     </div>
-    <div class="col-lg-3_4" style="padding: 0px">
+    <div class="col-lg-3_4" style="padding: 0px; height: 100%">
         <div class="chart-title" style="padding: 0px" ><br><br><br>
             OTRA GENERACIÓN:
         </div>
-        <div id="chart_4">
-            <img data-src="holder.js/100%x280/white/text:#chart_4">
+        <div id="chart_4" style="height: 90%;">
+            <img data-src="holder.js/100%x100%/white/text:#chart_4">
         </div>
     </div>
 {% endblock %}
@@ -64,6 +64,7 @@
                   .style("opacity", "0")
                   .style("display", "none");
 
+
         queue()
             .defer(draw_panel, "#chart_1", data_panel)  //draw_panel("#chart_1", data_panel)
             .await(loading_values);
@@ -78,11 +79,11 @@
         //donut.add_text_labels()
 
         // Creating legend:
-        create_legend('#legend_2', data_donut, w_donut, borders.height*0.04, color_donut);
+        create_legend('#legend_2', data_donut, w_donut, borders.height*0.05, color_donut);
 
         // values to draw the bars:
         borders = get_height_width('#chart_3');
-        let w_bar1 = borders.width*0.85; let h_bar1 = borders.height*0.7; let borde_x = w_bar1*0.1;
+        let w_bar1 = borders.width*0.85; let h_bar1 = borders.height*0.85; let borde_x = w_bar1*0.1;
         up_date_bar1(null, data_bar_hydro);
         up_date_bar2(null, data_bar_otra);
 

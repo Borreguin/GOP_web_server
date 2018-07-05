@@ -8,55 +8,70 @@ import os
 from my_lib.GOP_connection import GOPserver as op
 from my_lib.PI_connection import pi_connect as osi
 import pandas as pd
+
 gop_svr = op.GOPserver()
 pi_svr = osi.PIserver()
 script_path = os.path.dirname(os.path.abspath(__file__))
 # ______________________________________________________________________________________________________________#
 # ________________________________        GENERAL        VARIABLES       _______________________________________
 
-delta_15 = 15                                   # minutes
-factor_15 = delta_15 / 60                       # factor for calculating Energy using P each 15 minutes
-span_15 = pi_svr.span(str(delta_15) + "m")      # span time of 15 minutes
+delta_15 = 15  # minutes
+factor_15 = delta_15 / 60  # factor for calculating Energy using P each 15 minutes
+span_15 = pi_svr.span(str(delta_15) + "m")  # span time of 15 minutes
 
-delta_30 = 30                                   # minutes
-factor_30 = delta_30 / 60                       # factor for calculating Energy using P each 15 minutes
-span_30 = pi_svr.span(str(delta_15) + "m")      # span time of 15 minutes
+delta_30 = 30  # minutes
+factor_30 = delta_30 / 60  # factor for calculating Energy using P each 15 minutes
+span_30 = pi_svr.span(str(delta_15) + "m")  # span time of 15 minutes
 
 technology = ['Embalse', 'Pasada', 'Turbo Vapor', 'Turbo Gas', 'MCI', 'Biomasa',
               'Eólica', 'Fotovoltaica', 'Bio Gas']
+
+
 # ______________________________________________________________________________________________________________#
 
 
 def energy_production():
+    """
+    Detalle de la energía producida desde 00:00 hasta el momento en el día
+    - Hidráulica            (Mwh)   (%)
+    - Otra generación       (Mwh)   (%)
+    :return:
+    """
     e_hydro = generation_now('hidraulica')['value']
     e_total = generation_now('total')['value']
     e_otra = e_total - e_hydro
     # e_otra = generation_now('otra generacion')['value']
 
-    result = [{"id": 0, "label": "Hidráulica", "value": str(e_hydro) + " MWh",  "percentage": e_hydro/e_total},
-              {"id": 1, "label": "Otra Generación", "value": str(e_otra) + " MWh", "percentage": 1-e_hydro/e_total}]
+    result = [{"id": 0, "label": "Hidráulica", "value": str(e_hydro) + " MWh", "percentage": e_hydro / e_total},
+              {"id": 1, "label": "Otra Generación", "value": str(e_otra) + " MWh", "percentage": 1 - e_hydro / e_total}]
     return result
 
 
 def df_tags_exportation():
+    """
+    :return: Todas las tags relacionadas a la exportación de energía
+    """
     sql = "SELECT C.Codigo, C.Nombre, C2.TAG, C2.Descripcion, E.Elemento FROM CFG_Equivalencias E" + \
           " INNER JOIN CFG_Linea L ON E.Equivalencia=L.Codigo" + \
           " INNER JOIN CFG_Circuito C ON L.IdLinea=C.IdLinea " + \
           " INNER JOIN CFG_ElementoTAG M ON C.IdCircuito=M.IdElemento" + \
           " INNER JOIN CFG_TAG C2 on M.IdTAG = C2.IdTAG" + \
           " WHERE C2.TAG LIKE '%P.LINEA%'" \
-          + "AND C2.IdTipoTAG IN (1,3,9,10)"    # according to the flows
+          + "AND C2.IdTipoTAG IN (1,3,9,10)"  # according to the flows
     return pd.read_sql(sql, gop_svr.conn)
 
 
 def df_tags_importation():
+    """
+        :return: Todas las tags relacionadas a la importación de energía
+        """
     sql = "SELECT C.Codigo, C.Nombre, C2.TAG, C2.Descripcion, E.Elemento FROM CFG_Equivalencias E" + \
           " INNER JOIN CFG_Linea L ON E.Equivalencia=L.Codigo" + \
           " INNER JOIN CFG_Circuito C ON L.IdLinea=C.IdLinea " + \
           " INNER JOIN CFG_ElementoTAG M ON C.IdCircuito=M.IdElemento" + \
           " INNER JOIN CFG_TAG C2 on M.IdTAG = C2.IdTAG" + \
           " WHERE C2.TAG LIKE '%P.LINEA%'" \
-          + "AND C2.IdTipoTAG IN (5,6,11,12)"     # according to the flows
+          + "AND C2.IdTipoTAG IN (5,6,11,12)"  # according to the flows
     return pd.read_sql(sql, gop_svr.conn)
 
 
@@ -65,7 +80,7 @@ def exportation_energy_now():
         Exportation energy (MWh) from 0:00 until the current moment in an span of (span minutes)
         :return: energy MWh
     """
-    time_range = pi_svr.time_range_for_today()
+    time_range = pi_svr.time_range_for_today
     return exportation_energy(time_range)
 
 
@@ -86,10 +101,10 @@ def exportation_energy(time_range):
 
 def importation_energy_now():
     """
-    Importation energy (MWh) from 0:00 until the current moment in an span of (span minutes)
+    Importation energy (MWh) from 0:00 until the current moment in an span of (span 15 minutes)
     :return: energy MWh
     """
-    time_range = pi_svr.time_range_for_today()
+    time_range = pi_svr.time_range_for_today
     df_c = df_tags_importation()
     tags_AV = list(set([x for x in df_c["TAG"] if ".AV" in x]))
     df_values = pi_svr.interpolated_of_tag_list(tags_AV, time_range, span_15)
@@ -102,16 +117,18 @@ def importation_energy_now():
 def generation_matrix(time_range):
     """
     Generation matrix that is stored over BOSNI Database
+    Esta es la matriz porosa actualizada cada 30 minutos,
     :param time_range:  AFTimeRange (PIserver.time_range())
-    :return: DataFrame
+    :return: DataFrame con los generadores y su producción que se encuentran en linea
+    al corte de cada 30 minutos
     """
     initial_date = time_range.StartTime.ToString("yyyy-MM-dd HH:mm:s")
     final_date = time_range.EndTime.ToString("yyyy-MM-dd HH:mm:s")
     sql = "SELECT [Central],[Unidad],[Tecnología]" + \
-          ",[TAG],[Potencia],[Fecha]" +\
+          ",[TAG],[Potencia],[Fecha]" + \
           " FROM [BOSNI].[dbo].[vHIST_UNIDAD_POT_EFECTIVA]" + \
-          " WHERE [Fecha] between " +\
-          "'" + initial_date + "' and '" + final_date + "'"
+          " WHERE [Fecha] between '{0}' and '{1}'"
+    sql = sql.format(initial_date, final_date)
 
     df_gen = pd.read_sql(sql, gop_svr.conn)
     df_gen["Fecha"] = [f._repr_base for f in df_gen["Fecha"]]
@@ -125,7 +142,7 @@ def generation_energy_by_tech_now():
     Energy values for each kind of technology from 00:00 until the current moment
     :return: dictionary with energy of each kind of technology
     """
-    time_range = pi_svr.time_range_for_today()
+    time_range = pi_svr.time_range_for_today
     return generation_energy_by_tech(time_range)
 
 
@@ -213,14 +230,29 @@ def generation_now(detail="total"):
 # Ex. http://127.0.0.1:5000/cal/generation_detail_now/Embalse,Pasada&9
 # http://127.0.0.1:5000/cal/generation_detail_now/Turbo Vapor,Turbo Gas
 def generation_detail_now(list_tech, level=7):
+    """
+    Detalle de generación de acuerdo al tipo de tecnología (list_tech) desde las 00:00 hasta el momento
+    :param list_tech: opciones disponibles: Embalse, Pasada, Turbo Vapor, Turbo Gas, MCI, Biomasa,
+              Eólica, Fotovoltaica, Bio Gas
+    :param level: indica el nivel de detalle a observar
+    :return: diccionario con el detalle de generación de cada generador
+    """
     level = int(level)
-    if isinstance(list_tech,str):
+    if isinstance(list_tech, str):
         list_tech = list_tech.split(",")
-    time_range = pi_svr.time_range_for_today()
+    time_range = pi_svr.time_range_for_today
     return generation_detail(time_range, list_tech, level)
 
 
 def generation_detail(time_range, list_tech, level=7):
+    """
+        Detalle de generación de acuerdo al tipo de tecnología (list_tech) en el periodo de consulta (time_range)
+        :param time_range: El periodo de consulta
+        :param list_tech: opciones disponibles: Embalse, Pasada, Turbo Vapor, Turbo Gas, MCI, Biomasa,
+                  Eólica, Fotovoltaica, Bio Gas
+        :param level: indica el nivel de detalle a observar
+        :return: diccionario con el detalle de generación de cada generador
+        """
     df_gen = generation_matrix(time_range)
     mask = (df_gen["Tecnología"].isin(list_tech))
     df_gen = df_gen[mask]
@@ -236,7 +268,7 @@ def generation_detail(time_range, list_tech, level=7):
     total = generation_now('hidraulica')['value']
 
     if total == 0:
-        print("[{0}] \t [generation_detail] "
+        print("[{0}] [calculos.py] \t [generation_detail] "
               "\t La matrix de generación se encuentra vacía".format(script_path))
         return None
 
@@ -245,7 +277,7 @@ def generation_detail(time_range, list_tech, level=7):
     for idx, name in enumerate(df_head.index):
         value = df_head["Potencia"].iloc[idx]
         name = name.replace("Central ", "")
-        percentage = round(value/total, 4)
+        percentage = round(value / total, 4)
         if len(name) > 15:
             name = name[:15] + "."
 
@@ -260,16 +292,19 @@ def generation_detail(time_range, list_tech, level=7):
     if level > 0:
         r = {"id": level,
              "label": "Otros",
-             "value": str(int((1-acc)*total)) + " MWh",
-             "percentage": round(1-acc, 4)
-        }
+             "value": str(int((1 - acc) * total)) + " MWh",
+             "percentage": round(1 - acc, 4)
+             }
         result.append(r)
 
     return result
 
 
 def other_generation_detail_now():
-
+    """
+    Detalle de la generación "Otra generación" ("Gas natural", "No convencional", "Calidad de servicio")
+    :return: diccionario con el detalle de generación
+    """
     df_r = pd.DataFrame(
         index=["Gas natural", "No convencional", "Calidad de servicio"],
         columns=["value", "id", "label", "percentage"])
@@ -279,9 +314,10 @@ def other_generation_detail_now():
     df_r.at["Gas natural", "value"] = generation_now('Turbo Gas')['value']
     df_r.at["No convencional", "value"] = generation_now('no convencional')['value']
     df_r.at["Calidad de servicio", "value"] = total - \
-                                               df_r["value"].loc["Gas natural"] - \
-                                               df_r["value"].loc["No convencional"]
-    df_r["percentage"] = df_r["value"]/ total
+                                              df_r["value"].loc["Gas natural"] - \
+                                              df_r["value"].loc["No convencional"]
+    df_r["percentage"] = df_r["value"] / total
+    df_r["numeric"] = df_r["value"]
     df_r["value"] = [str(x) + " MWh" for x in df_r["value"]]
     return df_r.to_dict("record")
 
@@ -291,7 +327,7 @@ def integrating_by_average(df, dx):
     mean_y = (df[:-1] + df.shift(-1)[:-1]) / 2
     # delta_x = x.shift(-1)[:-1] - x[:-1]
     # scaled_int = mean_y.multiply(delta_x)
-    scaled_int = mean_y*dx
+    scaled_int = mean_y * dx
     scaled_int.fillna(0, inplace=True)
     return scaled_int.sum()
 
@@ -299,6 +335,7 @@ def integrating_by_average(df, dx):
 def timestamp_now():
     dt = datetime.datetime.now()
     return dt.strftime("%Y-%m-%d %H:%M:%S")
+
 
 """
     result = 0
@@ -308,10 +345,18 @@ def timestamp_now():
         result = df.sum() * dx
 """
 
-# def total_generation_now():
-# x = cal_exportation_now()
-# y = cal_importation_now()
-# r = generation_energy_by_tech_now()
 
-# generation_detail_now(['Embalse', 'Pasada'])
-other_generation_detail_now()
+def test():
+    other_generation_detail_now()
+    generation_energy_by_tech_now()
+    # def total_generation_now():
+    # x = cal_exportation_now()
+    # y = cal_importation_now()
+    # r = generation_energy_by_tech_now()
+    # generation_detail_now(['Embalse', 'Pasada'])
+
+
+if __name__ == "__main__":
+    perform_test = False
+    if perform_test:
+        test()

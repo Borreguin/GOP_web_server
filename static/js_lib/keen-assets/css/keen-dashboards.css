@@ -63,6 +63,7 @@
   color: black;
   font-size: 12px;
   padding: 3px 7px 3px;
+    border-radius: 12px;
 }
 
 .keen-dashboard .chart-wrapper .keen-dataviz,

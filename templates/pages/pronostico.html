@@ -1,0 +1,73 @@
+{% extends "keen_io_dashboard/layouts/hero-one/layout.html" %}
+
+{% block grid_1 %}
+    <div id="div_demanda" style="height: 100%">
+    </div>
+{% endblock %}
+<!--
+{% block grid_2 %}
+    <div id="div_demanda" style="height: 100%"></div>
+{% endblock %}
+-->
+
+{% block head_scripts %}
+     <!-- Plotly.js -->
+    <script type="text/javascript" src="/static/js_lib/plotly-latest.min.js"></script>
+    <script type="text/javascript" src="/static/js_lib/d3.v3.5.17.js"></script>
+    <!-- Herramienta para actualizar valores en tiempo real -->
+    <script type="text/javascript" src="/static/my_js/pool.js"></script>
+    <script>
+        let description = "{{ titles.sbt1 | safe }}";
+        let date = "{{ date | safe }}";
+        let hour = "{{ hour | safe }}";
+    </script>
+{% endblock %}
+
+{% block body_scripts %}
+    <script>
+        let time_seconds = 300;
+        let ct_date = new Date(Date.parse(date + " " + hour));
+        let style = "black_style";
+        let styles = {default: "#203864", white_style: "white", black_style: "black"};
+        let init_ap = true;
+        function updating_all() {
+            update_time("fecha_actual");
+            ct_date = add_time(ct_date, 5);
+            let date_arg = ct_date.getFullYear() + "-" + (ct_date.getMonth() + 1) + "-" + ct_date.getDate();
+            let hour_arg = ct_date.toLocaleTimeString('it-IT');
+            let url = '/grafica_pronostico/' + description + "/" +  date_arg + "/" + hour_arg + "/" + style;
+
+            queue()
+                .defer(d3.json, url)
+                .await(update_graph);
+            setTimeout(updating_all, time_seconds*1000);
+        }
+
+        function update_graph(error, graph_data){
+            Plotly.react("div_demanda", graph_data.data, graph_data.layout);
+            if(init_ap){add_sytles(); init_ap=false;}
+        }
+        function add_sytles(){
+            let menu_container = d3.select(".modebar");
+            for(id in styles){
+                menu_container
+                    .append("div")
+                    .attr("id", id)
+		            .attr("class", "modebar-group")
+                    .style("background-color", styles[id])
+                    .style("margin-left", "0px")
+                    .style("font-size", "8pt")
+                    .html('<a rel="tooltip" class="modebar-btn" data-title="Select style color" > sty' +
+                           '</a>')
+                    .on("click", function() {
+                        style = d3.select(this).attr("id");
+                        updating_all();
+                    });
+            }
+        }
+
+        updating_all();
+
+    </script>
+
+{% endblock %}

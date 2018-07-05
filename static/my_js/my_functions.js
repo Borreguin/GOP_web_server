@@ -20,7 +20,7 @@ let current_timestamp = ct.toLocaleDateString("es-US",options) + ", " + ct.toLoc
 let bar_size = 160;
 let w = $(document).width();
 let h = $(document).height();
-let height =  Math.max(Math.min(h, 800), 300) - margin.top - margin.bottom - bar_size;
+let height =  Math.max(Math.min(h, 950), 300) - margin.top - margin.bottom - bar_size;
 let width = Math.max(Math.min(w, 1200), 500) - margin.left - margin.right;
 
 // End general declaration
@@ -69,4 +69,8 @@ function get_groups(objt) {
         grps = objt[0];  // d3_v3
     }
     return grps;
+}
+
+function add_time(ct_date, int_time_minutes){
+    return new Date(ct_date.getTime() + int_time_minutes*60000);
 }

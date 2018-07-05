@@ -51,6 +51,7 @@ function capitalizeFirstLetter(string) {
 }
 
 function update_time(id) {
+    current_timestamp = get_time();
     d3.select('[id="'+ id +'"]').text(
         capitalizeFirstLetter(current_timestamp)
     );

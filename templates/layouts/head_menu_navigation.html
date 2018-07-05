@@ -1,5 +1,5 @@
 <!doctype html>
-<html>
+<html style="height: 98%; width: 98%">
   <head>
       {% block head %}
         <title>{{ title }}</title>
@@ -19,8 +19,8 @@
     {% endblock %}
   </head>
 
-  <body class="keen-dashboard" style="padding-top: 60px;">
-    <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+  <body class="keen-dashboard" style="padding-top: 60px; height: 100%">
+    <div class="navbar navbar-default navbar-fixed-top" role="navigation">
         <div class="container-fluid">
             <!------------- Main Button  ---------------------->
             <div class="navbar-header">
@@ -43,6 +43,11 @@
                     <li><a href={{ link.url }}> {{ link.text|safe }}</a> </li>
                 {% endfor %}
                 </ul>
+                <div class="nav-divider navbar-right">
+                    <a href="/">
+                    <img src="/static/my_icons/logo.jpg" alt="logo_cenace" style="height: 50px">
+                    </a>
+                </div>
             </div>
             <!------------- End Links --------------------------->
         </div>
@@ -58,6 +63,6 @@
 
     {% block body_scripts %}{% endblock %}
 
-    <p class="text-right">&copy; 2018 Gerencia de Operaciones</p>
+    <p class="text-right" style="font-size: 8pt; white-space: nowrap">&copy; 2018 Gerencia de Operaciones</p>
   </body>
 </html>

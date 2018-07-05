@@ -66,7 +66,8 @@ def get_conn():
         path = "./my_lib/GOP_connection/st.pkl"
         with open(path, 'rb') as pickle_file:
             ps = pickle.load(pickle_file)
-    return pymssql.connect(server="DOP-WKSTAADO", user="readuser", password=decrypt(ps), port=1433)
+    return pymssql.connect(server="QCITBVWBDCL3", user="readuser", password=decrypt(ps), port=1433)
+    # return pymssql.connect(server="DOP-WKSTAADO", user="readuser", password=decrypt(ps), port=1433)
 
 
 def connection_test():
@@ -74,9 +75,12 @@ def connection_test():
     sql_statement = "SELECT * FROM CFG_Pais"
     df_prueba = pd.read_sql(sql_statement, gop.conn)
     df = gop.import_export_by_time("2017-05-02", "2017-07-05", "I")
-    df = gop.matrix_generation("2018-05-17 12:00:00", "2018-05-17 12:15:00")
-    df = gop.matrix_generation("2018-05-17 12:00:00")
+    # df = gop.matrix_generation("2018-05-17 12:00:00", "2018-05-17 12:15:00")
+    # df = gop.matrix_generation("2018-05-17 12:00:00")
     print(df.head(5))
+    print("\n Test exitoso")
 
 if __name__ == '__main__':
-    connection_test()
+    perform_test = True
+    if perform_test:
+        connection_test()
