@@ -62,3 +62,13 @@ const numberWithSpaces = (x) => {
   parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
   return parts.join(".");
 };
+
+function update_time_with(id, date_time) {
+
+    let options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    let to_update =(date_time.toLocaleDateString("es-US",options) + ", " + date_time.toLocaleTimeString());
+
+    d3.select('[id="'+ id +'"]').text(
+        capitalizeFirstLetter(to_update)
+    );
+}

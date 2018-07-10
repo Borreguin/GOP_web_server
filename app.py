@@ -23,6 +23,7 @@ import json
 import pandas as pd
 
 import os
+
 script_path = os.path.dirname(os.path.abspath(__file__))
 # default code
 app = Flask(__name__)
@@ -36,8 +37,9 @@ links = [
     {"url": '/test', 'text': "Nuevo Link"}
 ]
 
-hmm_modelPath = './hmm_application/model/'          # Model path
-file_dataPath = './hmm_application/data/'           # File data path
+hmm_modelPath = './hmm_application/model/'  # Model path
+file_dataPath = './hmm_application/data/'  # File data path
+
 
 # ______________________________________________________________________________________________________________#
 
@@ -96,12 +98,12 @@ def index():
     rng = pd.date_range('1/1/2011', periods=7500, freq='H')
     ts = pd.Series(np.random.randn(len(rng)), index=rng)
 
-    graphs = [ dict( data=[ dict( x=[1, 2, 3], y=[10, 20, 30], type='scatter'),],
-            layout=dict(title='first graph')),
-            dict(data=[ dict( x=[1, 3, 5], y=[10, 50, 30], type='bar'),],
-            layout=dict(title='second graph')),
-        dict(data=[dict( x=ts.index,  # Can use the pandas data structures directly
-                y=ts)])]
+    graphs = [dict(data=[dict(x=[1, 2, 3], y=[10, 20, 30], type='scatter'), ],
+                   layout=dict(title='first graph')),
+              dict(data=[dict(x=[1, 3, 5], y=[10, 50, 30], type='bar'), ],
+                   layout=dict(title='second graph')),
+              dict(data=[dict(x=ts.index,  # Can use the pandas data structures directly
+                              y=ts)])]
 
     # Add "ids" to each of the graphs to pass up to the client
     # for templating
@@ -135,7 +137,7 @@ def prepare_dashboard():
 
     # data for donut
     data_donut = cal.energy_production()
-    
+
     # data for hydro_bar:
     data_bar_hydro = cal.generation_detail_now(['Embalse', 'Pasada'])
 
@@ -154,7 +156,6 @@ def prepare_dashboard():
 @app.route("/pronostico/<string:entity>")
 @app.route("/pronostico")
 def forecasting(entity="menu", date=None, hour=None):
-
     msg = ""
     model_name, tag_name, description, data_name, datetime_ini, datetime_fin = None, None, None, None, None, None
 
@@ -162,11 +163,17 @@ def forecasting(entity="menu", date=None, hour=None):
         date = datetime.datetime.now().strftime("%Y-%m-%d")
     if hour is None:
         hour = datetime.datetime.now().strftime("%H:%M:%S")
+    else:
+        try:
+            hour_dt = datetime.datetime.strptime(date + " " + hour, '%Y-%m-%d %H:%M:%S')
+        except Exception as e:
+            hour_dt = datetime.datetime.strptime(date + " " + hour, '%Y-%m-%d %H:%M')
+        hour = hour_dt.strftime("%H:%M:%S")
 
     try:
         df_config = pd.read_excel("./hmm_application/config.xlsx")
         df_config.set_index("entity", inplace=True)
-        description = df_config.at[entity,'description']
+        description = df_config.at[entity, 'description']
     except Exception as e:
         print(e)
         msg += "\n No existe la entidad: " + entity
@@ -177,9 +184,9 @@ def forecasting(entity="menu", date=None, hour=None):
     # graphJSON = graph_pronostico_demanda(description, date, hour)
 
     title = "Pronóstico de la demanda en tiempo real"
-    titles = {'sbt1': description, 'sbt2': ''}
+    titles = {'sbt1': description, 'sbt2': 'Información complementaria'}
     notes = {'nt1': 'Información preliminar, actualizada cada 15 minutos, Fuente: SCADA - CENACE',
-             'nt2': 'Información preliminar, actualizada cada 15 minutos,  Fuente: SCADA - CENACE'}
+             'nt2': ''}
 
     links_demand = [
         {"url": '/pronostico/demanda-nacional/{0}/{1}'.format(date, hour), "text": "Nacional"},
@@ -191,7 +198,6 @@ def forecasting(entity="menu", date=None, hour=None):
 
 @app.route("/grafica_pronostico/<string:description>/<string:date>/<string:hour>/<string:style>")
 def graph_pronostico_demanda(description, date=None, hour=None, style="default"):
-
     if date is None:
         date = datetime.datetime.now().strftime("%Y-%m-%d")
     if hour is None:
@@ -203,7 +209,7 @@ def graph_pronostico_demanda(description, date=None, hour=None, style="default")
     except Exception as e:
         msg = "Ingrese fecha en el siguiente formato (/yyy-mm-dd/H:M:S)  Ejemplo: /2018-01-01/16:32:12"
         print(e, msg)
-        return {'graph':{}, layout:{}}
+        return {'graph': {}, layout: {}}
 
     df_config = pd.read_excel("./hmm_application/config.xlsx")
     df_config.set_index("description", inplace=True)
@@ -215,13 +221,13 @@ def graph_pronostico_demanda(description, date=None, hour=None, style="default")
     hmm_modelPath_file = hmm_modelPath + model_name
     file_dataPath_file = file_dataPath + data_name
 
-    graph = hmm_ap.graphic_pronostico_demanda(hmm_modelPath_file, file_dataPath_file, tag_name, despacho,
-                                              datetime_ini, datetime_fin, style)
+    to_send = hmm_ap.graphic_pronostico_demanda(hmm_modelPath_file, file_dataPath_file, tag_name, despacho,
+                                                datetime_ini, datetime_fin, style)
 
     # Convert the figures to JSON ( PlotlyJSONEncoder appropriately converts pandas, datetime, etc)
     # objects to their JSON equivalents
-    json_graph = json.dumps(graph, cls=plt_u.PlotlyJSONEncoder)
-    return json_graph
+    json_data = json.dumps(to_send, cls=plt_u.PlotlyJSONEncoder)
+    return json_data
 
 
 # ______________________________________________________________________________________________________
@@ -269,7 +275,6 @@ def get_snapshot(tag_id):
 @app.route("/cal/<string:cal_id_function>")
 @app.route("/cal/<string:cal_id_function>/<string:parameters>")
 def get_cal(cal_id_function, parameters=None, id_encrypt=None):
-
     try:
         method_to_call = getattr(cal, cal_id_function)
         if parameters is None:
@@ -293,7 +298,6 @@ def get_cal(cal_id_function, parameters=None, id_encrypt=None):
 @app.route("/con/<string:cons_id_function>")
 @app.route("/con/<string:cons_id_function>/<string:parameters>")
 def get_cons(cons_id_function, parameters=None, id_encrypt=None):
-
     try:
         method_to_call = getattr(con, cons_id_function)
         if parameters is None:
@@ -317,4 +321,4 @@ def get_cons(cons_id_function, parameters=None, id_encrypt=None):
 if __name__ == '__main__':
     app.run(host='10.30.2.45', port=80)
     # app.run(host='127.0.0.1', port=80)
-    #app.run()
+    # app.run()

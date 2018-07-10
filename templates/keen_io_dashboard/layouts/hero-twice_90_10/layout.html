@@ -1,0 +1,88 @@
+{% extends "layouts/head_menu_navigation.html" %}
+{% block content %}
+
+  {% block date %}
+      <div id="fecha_actual" class="col-lg-12" style="margin-left: 2% ; color: black"> ---- </div>
+  {% endblock %}
+  <div class="container-fluid" style="height: 99%; padding: 0">
+
+		<div id="row-main" class="row" style="height: 97%;">
+		  <div id="content" class="col-lg-12" style="height: 100%; padding-right: 0">
+			<div class="chart-wrapper" style="height: 100%">
+
+            {% block title_1 %}
+                <div class="chart-title" style="padding-top: 4px; padding-right: 4px">
+                    {{ titles.sbt1 | safe }}
+                <a id="btn_toggle" class="btn btn-default btn-mini" style="float: right;height: 24px; width: 60px ;padding: 0"
+                onclick="toggle_sidebar()">
+                    + info
+                </a>
+                </div>
+            {% endblock %}
+
+			  <div class="chart-stage" style="height: 93%">
+                  {% block grid_1 %}
+                      <div id="grid_1">
+                        <img data-src="holder.js/100%x100%/white/text:#grid_1">
+                      </div>
+                  {% endblock %}
+			  </div>
+
+                {% block note_1 %}
+                    <div class="chart-notes" style="font-size: 8pt ; font-weight: normal">
+                        {{ notes.nt1 | safe}}
+                    </div>
+                {% endblock %}
+
+            </div>
+		  </div>
+		  <div id="sidebar" class="col-lg-2_3" style="height: 100%; padding-right: 0; display: none">
+			<div class="chart-wrapper" style="height: 100%">
+			  <div class="chart-title">
+				{{ titles.sbt2 | safe }}
+			  </div>
+			  <div class="chart-stage" style="height: 93%">
+                  {% block grid_2 %}
+                      <div id="grid_2" style="height: 100%">
+				        <img data-src="holder.js/100%x100%/white/text:#grid_2">
+                      </div>
+                  {% endblock %}
+			  </div>
+
+                {% block note_2 %}
+                  <div class="chart-notes" style="font-size: 8pt ; font-weight: normal">
+                    {{ notes.nt2 | safe}}
+                  </div>
+			    {% endblock %}
+            </div>
+		  </div>
+		</div>
+	</div>
+
+    <script>
+        let show=true;
+        function toggle_sidebar(){
+            if(show){
+                d3.select("#content")
+                    .attr("class", "col-lg-10_11");
+
+                d3.select("#sidebar")
+                    .style("display", "block");
+
+                d3.select("#btn_toggle")
+                    .text("- info");
+            }
+            if(!show){
+                d3.select("#content")
+                    .attr("class", "col-lg-12");
+
+                d3.select("#sidebar")
+                    .style("display", "none");
+
+                d3.select("#btn_toggle")
+                    .text("+ info");
+            }
+            show = !show;
+        }
+    </script>
+{% endblock %}

@@ -99,18 +99,22 @@ svg{
     white-space: normal;
 }
 
-.col-lg-3_4, .col-lg-4_5 {
+.col-lg-2_3, .col-lg-3_4, .col-lg-4_5, .col-lg-10_11 {
         position: relative;
         min-height: 1px;
-        padding-right: 15px;
-        padding-left: 15px;
+        padding-right: 5px;
+        padding-left: 5px;
     }
 
 @media (min-width: 1200px) {
 
 
-    .col-lg-3_4, .col-lg-4_5 {
+    .col-lg-2_3, .col-lg-3_4, .col-lg-4_5, .col-lg-10_11 {
         float: left;
+    }
+
+    .col-lg-2_3 {
+        width: 20%;
     }
 
     .col-lg-4_5 {
@@ -121,4 +125,8 @@ svg{
         width: 29.1%;
     }
 
+    .col-lg-10_11{
+        width: 80%;
+    }
 }
+

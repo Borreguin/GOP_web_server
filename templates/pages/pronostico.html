@@ -1,14 +1,70 @@
-{% extends "keen_io_dashboard/layouts/hero-one/layout.html" %}
+{% extends "keen_io_dashboard/layouts/hero-twice_90_10/layout.html" %}
+
+
+
 
 {% block grid_1 %}
     <div id="div_demanda" style="height: 100%">
     </div>
 {% endblock %}
-<!--
+
 {% block grid_2 %}
-    <div id="div_demanda" style="height: 100%"></div>
+    <div >
+        <table class="table">
+    <thead>
+      <tr>
+        <th></th>
+        <th style="font-size: 8pt; white-space: nowrap">Valor [MW]</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="info">
+          <td>Demanda programada a <a id="h_programada"> -- </a> h</td>
+          <td id="d_programada"> --- </td>
+      </tr>
+      <tr class="danger">
+        <td>Demanda real</td>
+        <td  id="d_real" > --- </td>
+      </tr>
+      <tr class="success">
+        <td>Demanda esperada</td>
+        <td id="d_esperada"> --- </td>
+
+      </tr>
+      <tr class="info">
+        <td>Desvío de la demanda a <a id="h_programada"> -- </a> h</td>
+        <td id="desvio_d"> --- </td>
+      </tr>
+      <tr >
+        <td>Día comportándose como</td>
+        <td id="family"> --- </td>
+      </tr>
+
+    </tbody>
+  </table>
+    </div>
+
+    <div id="weather_now">
+    <div style="font-weight: bold">
+        Temperatura en tiempo real
+    </div>
+     <div style="height: 70px;margin-bottom: 3px; overflow: hidden; white-space:nowrap;">
+        <a class="weatherwidget-io" href="https://forecast7.com/es/n0d18n78d47/quito/"
+           data-label_1="QUITO" data-mode="Current" data-days="3" data-theme="weather_one"
+           style="margin-top: -8px; height: 70px;">QUITO</a>
+    </div>
+    <div style="height: 70px;margin-bottom: 3px; overflow: hidden; white-space:nowrap;">
+        <a class="weatherwidget-io" href="https://forecast7.com/es/n2d17n79d92/guayaquil/"
+           data-label_1="GUAYAQUIL" data-mode="Current" data-days="3" data-theme="weather_one"
+           style="margin-top: -8px; height: 70px;">GUAYAQUIL</a>
+    </div>
+    <div style="height: 70px;margin-bottom: 3px; overflow: hidden; white-space:nowrap;">
+        <a class="weatherwidget-io" href="https://forecast7.com/es/n2d90n79d01/cuenca/"
+           data-label_1="CUENCA" data-mode="Current" data-days="3" data-theme="weather_one"
+           style="margin-top: -8px; height: 70px;">CUENCA</a>
+    </div>
+    </div>
 {% endblock %}
--->
 
 {% block head_scripts %}
      <!-- Plotly.js -->
@@ -25,27 +81,43 @@
 
 {% block body_scripts %}
     <script>
-        let time_seconds = 300;
+        let time_minutes = 6.5;
         let ct_date = new Date(Date.parse(date + " " + hour));
+        let today_date = new Date();
         let style = "black_style";
         let styles = {default: "#203864", white_style: "white", black_style: "black"};
-        let init_ap = true;
+        let init_ap = true, upd_w = 0;
         function updating_all() {
-            update_time("fecha_actual");
-            ct_date = add_time(ct_date, 5);
+            update_time_with("fecha_actual",ct_date);
+
             let date_arg = ct_date.getFullYear() + "-" + (ct_date.getMonth() + 1) + "-" + ct_date.getDate();
             let hour_arg = ct_date.toLocaleTimeString('it-IT');
             let url = '/grafica_pronostico/' + description + "/" +  date_arg + "/" + hour_arg + "/" + style;
 
+            if( ct_date.toDateString() === today_date.toDateString()){
+                if(upd_w % 4 == 0){weather_update();}
+                upd_w +=1 ;
+            }else{
+                d3.select("#weather_now").style("display", "none");
+            }
+
             queue()
                 .defer(d3.json, url)
                 .await(update_graph);
-            setTimeout(updating_all, time_seconds*1000);
+
+            // increase 5 minutes each time:
+            ct_date = add_time(ct_date, 5);
+            setTimeout(updating_all, time_minutes*1000*60);
         }
 
         function update_graph(error, graph_data){
+            let panel_info = graph_data.panel_info;
             Plotly.react("div_demanda", graph_data.data, graph_data.layout);
             if(init_ap){add_sytles(); init_ap=false;}
+            for(let info in panel_info){
+                d3.selectAll("#"+info).text(panel_info[info]);
+            }
+
         }
         function add_sytles(){
             let menu_container = d3.select(".modebar");
@@ -66,8 +138,17 @@
             }
         }
 
+        function weather_update() {
+            !function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];
+            if(!d.getElementById(id)){js=d.createElement(s);
+            js.id=id;js.src='https://weatherwidget.io/js/widget.min.js';
+            fjs.parentNode.insertBefore(js,fjs);}}
+            (document,'script','weatherwidget-io-js');
+        }
+
         updating_all();
 
     </script>
+
 
 {% endblock %}

@@ -289,6 +289,7 @@ def read_dfx_from(data_path, filter_values=True):
     """Read raw data"""
     df = pd.read_pickle(data_path)
     for col in df.columns:
+        df[col] = pd.to_numeric(df[col], errors= 'coerce')
         df[col] = df[col].interpolate(method='nearest', limit=3, limit_direction='both')
 
     """Excluding undesirable data"""
