@@ -34,6 +34,7 @@ div{
     color: black;
     float: right;
     margin: 0.5%;
+    font-size: 0.8vw;
 }
 
 
@@ -89,6 +90,7 @@ svg{
     font-family: "Trebuchet MS", Helvetica, sans-serif;
     font-weight: bold;
     white-space: normal;
+    font-size: 0.8vw;
 }
 .value_stripe{
     text-align: center;
@@ -97,6 +99,7 @@ svg{
     font-family: "Century Gothic", Monaco, monospace;
     font-weight: bold;
     white-space: normal;
+    font-size: 1.1vw;
 }
 
 .col-lg-2_3, .col-lg-3_4, .col-lg-4_5, .col-lg-10_11 {

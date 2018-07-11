@@ -21,7 +21,7 @@ span_15 = pi_svr.span(str(delta_15) + "m")  # span time of 15 minutes
 
 delta_30 = 30  # minutes
 factor_30 = delta_30 / 60  # factor for calculating Energy using P each 15 minutes
-span_30 = pi_svr.span(str(delta_15) + "m")  # span time of 15 minutes
+span_30 = pi_svr.span(str(delta_30) + "m")  # span time of 15 minutes
 
 technology = ['Embalse', 'Pasada', 'Turbo Vapor', 'Turbo Gas', 'MCI', 'Biomasa',
               'Eólica', 'Fotovoltaica', 'Bio Gas']
@@ -93,8 +93,8 @@ def exportation_energy(time_range):
     df_c = df_tags_exportation()
     tags_AV = list(set([x for x in df_c["TAG"] if ".AV" in x]))
     df_values = pi_svr.interpolated_of_tag_list(tags_AV, time_range, span_15)
-    mw_h = df_values[df_values > 0].sum()
-    energy = round(integrating_by_average(mw_h, factor_15), 0)
+    df_mw = df_values[df_values > 0].sum(axis=1)
+    energy = int(integrating_by_average(df_mw, factor_15))
     return {'value': energy, 'tag': 'exportation_energy_now',
             'time_range': str(time_range), 'timestamp': timestamp_now()}
 
@@ -108,8 +108,8 @@ def importation_energy_now():
     df_c = df_tags_importation()
     tags_AV = list(set([x for x in df_c["TAG"] if ".AV" in x]))
     df_values = pi_svr.interpolated_of_tag_list(tags_AV, time_range, span_15)
-    mw_h = df_values[df_values > 0].sum()
-    energy = round(integrating_by_average(mw_h, factor_15), 0)
+    df_mw = df_values[df_values > 0].sum(axis=1)
+    energy = int(integrating_by_average(df_mw, factor_15))
     return {'value': energy, 'tag': 'importation_energy_now',
             'time_range': str(time_range), 'timestamp': timestamp_now()}
 
@@ -322,6 +322,66 @@ def other_generation_detail_now():
     return df_r.to_dict("record")
 
 
+def generation_trend_today_by_tech():
+    """
+    La tendencia de generación por cada tipo de tecnología:
+    :return: DataFrame
+    """
+    time_range = pi_svr.time_range_for_today
+    df_matrix = generation_matrix(time_range)
+    # init
+    mask = (df_matrix["Tecnología"] == technology[0])
+    df_trend = df_matrix[mask].groupby("Fecha").sum()
+    df_trend.columns = [technology[0]]
+
+    # others
+    for tech in technology[1:]:
+        mask = (df_matrix["Tecnología"] == tech)
+        df_trend[tech] = df_matrix[mask].groupby("Fecha").sum()
+
+    return df_trend
+
+
+def trend_hydro_and_others_today():
+    df_by_tech = generation_trend_today_by_tech()
+    df_by_tech.index = pd.to_datetime(df_by_tech.index)
+    dt = datetime.datetime.today()
+    dt_today = dt.strftime("%Y-%m-%d")
+    dt_today = datetime.datetime.strptime(dt_today, "%Y-%m-%d").date()
+    index_range = pd.date_range(dt_today, dt_today + datetime.timedelta(hours=24), freq="30T")
+
+    df_trend = pd.DataFrame(columns=["Hydro", "Others"], index=index_range)
+
+    # Trend of importation
+    df_c = df_tags_importation()
+    tags_AV = list(set([x for x in df_c["TAG"] if ".AV" in x]))
+    df_values = pi_svr.interpolated_of_tag_list(tags_AV, pi_svr.time_range_for_today, span_30)
+    df_importation = df_values[df_values > 0].fillna(0).sum(axis=1)
+    df_importation.index = pd.to_datetime(df_importation.index)
+
+    # Trend of exportation
+    df_c = df_tags_exportation()
+    tags_AV = list(set([x for x in df_c["TAG"] if ".AV" in x]))
+    df_values = pi_svr.interpolated_of_tag_list(tags_AV, pi_svr.time_range_for_today, span_30)
+    df_exportation = df_values[df_values > 0].fillna(0).sum(axis=1)
+    df_exportation.index = pd.to_datetime(df_exportation.index)
+
+    # Trend by Hydro and Others technologies
+    hydro = ['Embalse', 'Pasada']
+    others = list(set(technology) - set(hydro))
+
+    df_trend["Hydro"] = df_by_tech[hydro].sum(axis=1) - df_exportation.values
+    df_trend["Others"] = df_by_tech[others].sum(axis=1) + df_importation.values
+    df_trend["Exportation"] = df_exportation
+    df_trend["Total"] = df_trend["Others"] + df_by_tech[hydro].sum(axis=1)
+    df_trend["National_demand"] = df_trend["Total"].loc[df_exportation.index] - df_exportation.values
+
+    return df_trend
+
+"""
+FUNCIONES AUXILIARES:
+"""
+
 def integrating_by_average(df, dx):
     # integrating using average:
     mean_y = (df[:-1] + df.shift(-1)[:-1]) / 2
@@ -347,16 +407,18 @@ def timestamp_now():
 
 
 def test():
-    other_generation_detail_now()
-    generation_energy_by_tech_now()
+    # other_generation_detail_now()
+    # generation_energy_by_tech_now()
     # def total_generation_now():
     # x = cal_exportation_now()
     # y = cal_importation_now()
     # r = generation_energy_by_tech_now()
     # generation_detail_now(['Embalse', 'Pasada'])
+    # generation_trend_today_by_tech()
+    trend_hydro_and_others_today()
 
 
 if __name__ == "__main__":
-    perform_test = False
+    perform_test = True
     if perform_test:
         test()

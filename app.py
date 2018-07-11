@@ -13,6 +13,7 @@ from my_lib.calculations import calculos as cal
 from my_lib.calculations import consultas as con
 from my_lib.hmm import real_time_application as hmm_ap
 from my_lib.encrypt import library_encrypt as en
+from my_lib.visualizations import visual_util as vi
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -33,8 +34,8 @@ app = Flask(__name__)
 
 # Links for the main page:
 links = [
-    {"url": '/', "text": "Inicio"},
-    {"url": '/test', 'text': "Nuevo Link"}
+    {"url": '/', "text": "Inicio"}
+    # {"url": '/test', 'text': "Nuevo Link"}
 ]
 
 hmm_modelPath = './hmm_application/model/'  # Model path
@@ -44,10 +45,10 @@ file_dataPath = './hmm_application/data/'  # File data path
 # ______________________________________________________________________________________________________________#
 
 @app.route('/')
-def hello_world():
+def main_page():
     """ This is the MAIN PAGE of this Server Application"""
     # TODO: Create a default page
-    return 'Hello World!'
+    return 'Página principal en construcción'
 
 
 """ A testing part ------------------------------------------------------------------------"""
@@ -145,8 +146,18 @@ def prepare_dashboard():
     data_bar_otra = cal.other_generation_detail_now()
 
     return render_template('pages/ds_demanda.html',
-                           links=links, title=title, titles=titles, notes=notes, data_panel=data_panel
-                           , data_donut=data_donut, data_bar_hydro=data_bar_hydro, data_bar_otra=data_bar_otra)
+                           links=links, title=title, titles=titles, notes=notes, data_panel=data_panel,
+                           data_donut=data_donut, data_bar_hydro=data_bar_hydro, data_bar_otra=data_bar_otra)
+
+
+@app.route("/graph_trend_hydro_and_others_today")
+def graph_trend_hydro_and_others_today():
+
+    # data for trend hydro and others:
+    df_trend = cal.trend_hydro_and_others_today()
+    to_send = vi.get_traces_for_gen_hydro_and_others(df_trend)
+    json_data = json.dumps(to_send, cls=plt_u.PlotlyJSONEncoder)
+    return json_data
 
 
 @app.route("/pronostico/<string:entity>/<string:date>/<string:hour>")

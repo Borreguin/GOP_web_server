@@ -9,7 +9,7 @@
         <div class="chart-title" style="font-style: oblique; padding: 0px">
             DISTRIBUCIÓN DE LA PRODUCCIÓN:
         <br><br><br><br></div>
-        <div id="chart_2" style="height: 70%">
+        <div id="chart_2" style="height: 60%">
             <img data-src="holder.js/100%x100%/white/text:#chart_2">
         </div>
         <div id="legend_2" >
@@ -34,9 +34,16 @@
     </div>
 {% endblock %}
 
+{% block grid_2 %}
+    <div id="gen_trend" style="height: 100%; width: 100%">
+    </div>
+{% endblock %}
+
 {% block head_scripts %}
     <link href="/static/my_css/donut.css" rel="stylesheet" type="text/css" />
     <link href="/static/my_css/stacked_bar.css" rel="stylesheet" type="text/css" />
+    <!-- Plotly.js -->
+    <script type="text/javascript" src="/static/js_lib/plotly-latest.min.js"></script>
     <script>
         let data_panel = JSON.parse('{{ data_panel | tojson | safe}}');
         let data_donut = JSON.parse('{{ data_donut | tojson | safe}}');
@@ -52,6 +59,7 @@
     <script type="text/javascript" src="/static/my_js/my_legend.js"></script>
     <script type="text/javascript" src="/static/my_js/stacked_bar.js"></script>
     <script type="text/javascript" src="/static/my_js/pool.js"></script>
+
     <script>
 
         let blue_color = color_scale(
@@ -88,7 +96,7 @@
         up_date_bar2(null, data_bar_otra);
 
         function loading_values() {
-            x = 100; //refresh each x seconds
+            x = 5; //refresh each x minutes
             update_values_for('value_stripe');
             update_time("fecha_actual");
             // UPDATE DONUT
@@ -109,7 +117,13 @@
                 .defer(d3.json, url)
                 .await(up_date_bar2);
 
-            setTimeout(loading_values, x*1000);
+            // UPDATE TREND
+            url = '/graph_trend_hydro_and_others_today'
+            queue()
+                .defer(d3.json, url)
+                .await(update_trend);
+
+            setTimeout(loading_values, x*1000*60);
         }
 
         function update_donut(error, data_donut) {
@@ -130,6 +144,9 @@
             add_labels(cells2);
         }
 
+        function update_trend(error, graph_data) {
+            Plotly.react("gen_trend", graph_data.data, graph_data.layout);
+        }
 
     </script>
 {% endblock %}

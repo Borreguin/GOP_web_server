@@ -42,7 +42,7 @@ function create_legend(to_plot, legend_data, w_legend, h_legend, legend_colour) 
         .attr("class", "text_legend")
         .style("color", "black")
         .style('height', cell_height + "px")
-        .style("font-size", f_scale + "%")
+        //.style("font-size", f_scale + "%")
         .style('width', (w_legend*0.97 - icon_width ) + "px" )
         .text(function (d) {
            return d.label;

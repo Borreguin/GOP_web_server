@@ -27,7 +27,7 @@ function draw_panel(to_plot, data_panel, callback) {
 
 	// icon size and cell size
 	let icon_width = w_panel*0.30;
-    let cell_height = h_panel/n_data;
+    let cell_height = Math.min(h_panel/n_data, 100);
 
     // let put the data inside the container
     // creating 'n_data' containers
@@ -64,7 +64,7 @@ function draw_panel(to_plot, data_panel, callback) {
         .append("xhtml:body")
         .style("background-color", "transparent")
         .html( function (d) {
-            let y_scale = scaleLinear({domain:[200 , 1000], range: [0.82, 1.3]});
+            let y_scale = scaleLinear({domain:[200 , 1000], range: [10, 20]});
             let font_size =  stripe_height*0.4*y_scale(stripe_width);
             if(d.label.length > 10 && d.label.length <= 22 ){
                 font_size = stripe_height*0.35*y_scale(stripe_width);
@@ -72,8 +72,8 @@ function draw_panel(to_plot, data_panel, callback) {
                 font_size = stripe_height*0.31*y_scale(stripe_width);
             }
             return '<div' +
-                ' style="width:'+ (stripe_width-8)  + 'px;' +
-                ' font-size:'+ font_size +'px"' +
+                ' style="width:'+ (stripe_width-8)  + 'px;"' +
+                //' font-size:'+ font_size +'pt"' +
                 ' class="' + stripe_class + '"' +
                 '>'
                 +  d.label
@@ -91,8 +91,8 @@ function draw_panel(to_plot, data_panel, callback) {
             return '<div' +
                 ' id="' + d.tag + '";' +
                 ' style="width:'+ stripe_width  + 'px;' +
-                ' height:' + stripe_height + 'px;' +
-                ' font-size:'+ font_size +'px"' +
+                ' height:' + stripe_height + 'px;"' +
+                // ' font-size:'+ font_size +'px"' +
                 ' class="' + value_class + '"' +
                 '>'
                 +  "L ----.-- "
