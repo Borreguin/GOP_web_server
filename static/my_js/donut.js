@@ -96,8 +96,8 @@ function donutChart() {
                 .attr('width', width + margin.left + margin.right)
                 .attr('height', height + margin.top + margin.bottom)
               .append('g')
-                .attr('transform', 'translate(' + (width + margin.left + margin.right)/ 2 + ',' +
-                    (height + margin.top + margin.bottom) / 2 + ')');
+                .attr('transform', 'translate(' + (width + margin.left)/ 2 + ',' +
+                    (height + margin.top + margin.bottom) / 2  + ')');
             // ===========================================================================================
 
             // ===========================================================================================

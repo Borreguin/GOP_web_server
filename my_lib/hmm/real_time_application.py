@@ -33,8 +33,8 @@ py.init_notebook_mode(connected=False)  # run at the start of every ipython note
 max_alpha = 2
 min_step = 0.1
 alpha_values = np.arange(-1.5, max_alpha, min_step)
-n_allowed_consecutive_violations = 3
-n_profiles_to_see = 6
+n_allowed_consecutive_violations = 6
+n_profiles_to_see = 7
 gop_svr = op.GOPserver()
 
 
@@ -139,11 +139,14 @@ def get_expected_profiles_from(df_mean, df_with, n_expected_clusters):
     :param n_expected_clusters:  número de perfiles esperado
     :return: DataFrame con los perfiles más cercanos (menor error) al perfil comparado (df_with)
     """
-    similar_index = df_mean.T.index.intersection(df_with.index)
-    df_mean_pt = df_mean.T.loc[similar_index]
-    df_with = df_with.loc[similar_index]
+    df_intepolate = pd.DataFrame(index=df_with.index)
+    df_intepolate = pd.concat([df_intepolate, df_mean.T], axis=1).interpolate()
+    similar_index = df_intepolate.index.intersection(df_with.index)
+    df_mean_pt = df_intepolate.loc[similar_index]
+    # df_with = df_with.loc[similar_index]
+    max_value = max(df_with.values.max(),df_intepolate.values.max())
 
-    n_real_time = len(df_with.index)
+    df_mean_pt, df_with = df_mean_pt/max_value, df_with/max_value
     df_error = df_mean_pt.sub(df_with.T, axis=0)
     # df_error = df_error.div(df_with.T, axis=0)
     # result = (df_error.sum() / n_real_time)*100
@@ -255,7 +258,8 @@ def obtain_expected_area(model_path, data_path, tag_name, str_time_ini, str_time
                 alpha_final = alpha_min_max[2]
                 result["df_std"] = df_std * alpha_final
 
-            if error < family_error and alpha_min_max[0] < max_alpha and alpha_min_max[1] < max_alpha:
+            # if error < family_error and alpha_min_max[0] < max_alpha and alpha_min_max[1] < max_alpha:
+            if error < family_error:
                 family_error = error
                 family_error_dict[family] = error
                 result["family_error"] = family_error_dict
@@ -271,8 +275,9 @@ def adjust_expect_band(df_int, df_profile, df_std):
     :param df_std:      The defined standard deviation
     :return: Dataframe with the definition of the expected area, alpha values
     """
-    df_aux = df_int.dropna()
-    similar_index = df_aux.index.intersection(df_profile.index)
+    df_intepolate = pd.DataFrame(index=df_int.dropna().index)
+    df_intepolate = pd.concat([df_intepolate, df_profile], axis=1).interpolate()
+    similar_index = df_intepolate.index.intersection(df_int.index)
 
     # Define the expected area:
     df_area = pd.DataFrame(index=df_profile.index)
@@ -436,7 +441,8 @@ def graphic_pronostico_demanda(hmm_modelPath, file_dataPath, tag_name, despacho,
     """ Añadir la curva de despacho programado (si existe): """
     if not df_despacho.empty:
         trace_dispatch, last_color = trace_df_despacho(df_despacho)
-        df_error = df_despacho.iloc[:, -1].sub(df_int, axis=0)
+        # df_error = df_despacho.iloc[:, -1].sub(df_int, axis=0)
+        df_error = df_int.sub(df_despacho.iloc[:, -1], axis=0)
         df_error.dropna(inplace=True)
         trace_deviation = trace_df_error(df_error, last_color)
         data = [trace_deviation] + trace_std + list_traces_expected_area + trace_dispatch

@@ -8,12 +8,12 @@
     <div class="col-lg-3" style="padding: 0px; height: 100%">
         <div class="chart-title" style="font-style: oblique; padding: 0px">
             DISTRIBUCIÓN DE LA PRODUCCIÓN:
-        <br><br><br><br></div>
+        <br><br><br><br><br><br></div>
         <div id="chart_2" style="height: 60%">
             <img data-src="holder.js/100%x100%/white/text:#chart_2">
         </div>
         <div id="legend_2" >
-            <img data-src="holder.js/100%x100/white/text:#legend_2">
+            <img data-src="holder.js/100%x100%/white/text:#legend_2">
         </div>
     </div>
     <div class="col-lg-3_4" style="padding: 0px; height: 100%" >
@@ -79,7 +79,7 @@
 
         // Creating the donut chart:
         let borders = get_height_width('#chart_2');
-        let w_donut = borders.width; let h_donut = borders.height*0.7;
+        let w_donut = borders.width; let h_donut = borders.height;
         let color_donut = color_scale(["#5897DD", "#E7AC14", "#FFCC00"]);
         let donut = create_donut("#chart_2", data_donut, w_donut, h_donut, color_donut);
         donut.add_inner_label("Hidráulica");

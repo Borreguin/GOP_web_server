@@ -20,14 +20,21 @@ function draw_panel(to_plot, data_panel, callback) {
     d3.select(to_plot).select("svg").remove();
     d3.select(to_plot).select("img").remove();
 
+    // icon size and cell size
+	let icon_width = w_panel*0.30;
+    let cell_height = Math.min(h_panel/n_data, 100);
+    let real_height = n_data*cell_height;
+    let height_size = height + margin.top + margin.bottom;
+
+    d3.select(to_plot)
+        .append('div')
+        .style("width", (width + margin.left + margin.right) + "px")
+        .style("height", ((height_size - real_height)/2) + "px");
+
 	let gallery = d3.select(to_plot)
         .append('div')
         .style("width", (width + margin.left + margin.right) + "px")
-        .style("height", (height + margin.top + margin.bottom) + "px");
-
-	// icon size and cell size
-	let icon_width = w_panel*0.30;
-    let cell_height = Math.min(h_panel/n_data, 100);
+        .style("height", real_height + "px");
 
     // let put the data inside the container
     // creating 'n_data' containers
