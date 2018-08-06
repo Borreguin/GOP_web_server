@@ -1,0 +1,25 @@
+{% extends "keen_io_dashboard/layouts/total_panel/layout.html" %}
+{% block head_scripts %}
+    <script>
+        const map_data = JSON.parse('{{ map_data | tojson | safe}}');
+        const map_config = JSON.parse('{{ map_config | tojson | safe}}');
+        let map_selection = "all";
+    </script>
+{% endblock %}
+
+{% block body_scripts %}
+        <script type="text/javascript" src="/static/js_lib/d3.js"></script>
+        <script type="text/javascript" src="/static/my_js/map_util.js"></script>
+		<script>
+            console.log("Starting Ecuador map...");
+/*
+            queue()
+                .defer(make_map, "#grid_1", "all")
+                .await(config_map);
+
+            function config_map() {
+                assign_color(map_config);
+                assign_function();
+            }*/
+        </script>
+{% endblock %}

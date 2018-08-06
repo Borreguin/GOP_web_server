@@ -59,30 +59,4 @@
 		</div>
 	</div>
 
-    <script>
-        let show=true;
-        function toggle_sidebar(){
-            if(show){
-                d3.select("#content")
-                    .attr("class", "col-lg-10_11");
-
-                d3.select("#sidebar")
-                    .style("display", "block");
-
-                d3.select("#btn_toggle")
-                    .text("- info");
-            }
-            if(!show){
-                d3.select("#content")
-                    .attr("class", "col-lg-12");
-
-                d3.select("#sidebar")
-                    .style("display", "none");
-
-                d3.select("#btn_toggle")
-                    .text("+ info");
-            }
-            show = !show;
-        }
-    </script>
 {% endblock %}

@@ -118,7 +118,7 @@
                 .await(up_date_bar2);
 
             // UPDATE TREND
-            url = '/graph_trend_hydro_and_others_today'
+            url = '/graph_trend_hydro_and_others_today';
             queue()
                 .defer(d3.json, url)
                 .await(update_trend);

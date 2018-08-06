@@ -31,12 +31,14 @@ cf.set_config_file(offline=True, world_readable=True, theme='ggplot')
 py.init_notebook_mode(connected=False)  # run at the start of every ipython notebook to use plotly.offline
 
 max_alpha = 2
-min_step = 0.1
-alpha_values = np.arange(-1.5, max_alpha, min_step)
-n_allowed_consecutive_violations = 6
-n_profiles_to_see = 7
+min_step = 0.25
+alpha_values = np.arange(-1.2, max_alpha, min_step)
+n_allowed_consecutive_violations = 2
+n_profiles_to_see = 5
 gop_svr = op.GOPserver()
 
+# Exportación Ecuador Colombia
+exclude_list = ['XMEMEXPU04', 'COESEXPU02', 'XMEMEXPU02']
 
 def day_cluster_matrix(hmm_model, df_y):
     """
@@ -275,18 +277,21 @@ def adjust_expect_band(df_int, df_profile, df_std):
     :param df_std:      The defined standard deviation
     :return: Dataframe with the definition of the expected area, alpha values
     """
-    df_intepolate = pd.DataFrame(index=df_int.dropna().index)
-    df_intepolate = pd.concat([df_intepolate, df_profile], axis=1).interpolate()
-    similar_index = df_intepolate.index.intersection(df_int.index)
+    dt_index = pd.date_range(df_int.index[0], df_int.index[0] + pd.Timedelta('23 H 45 m'), freq='15T')
+    df_interpolate = pd.DataFrame(index=dt_index)
+    df_int_profile = pd.concat([df_interpolate, df_profile], axis=1).interpolate()
+    df_int_std = pd.concat([df_interpolate, df_std], axis=1).interpolate()
+    similar_index = df_int_profile.index.intersection(df_int.index)
 
     # Define the expected area:
-    df_area = pd.DataFrame(index=df_profile.index)
+    df_area = pd.DataFrame(index=df_interpolate.index)
     alpha_max_lim, alpha_min_lim = 0, 0
 
     # Adjusting the expected band by changing the alpha values:
     for alpha in alpha_values:
         # df_area["min"] = df_profile['min'] - alpha * df_std.values
-        df_area["min"] = df_profile['expected'] - alpha * df_std.values
+        df_area["min"] = df_int_profile['expected'] - alpha * df_int_std.values[0]
+
         check_list = list(df_int.loc[similar_index] < df_area["min"].loc[similar_index])
         alpha_min_lim = alpha
         if not there_is_n_consecutive_violations(check_list, n_allowed_consecutive_violations):
@@ -294,7 +299,8 @@ def adjust_expect_band(df_int, df_profile, df_std):
 
     for alpha in alpha_values:
         # df_area["max"] = df_profile['max'] + alpha * df_std.values
-        df_area["max"] = df_profile['expected'] + alpha * df_std.values
+        df_area["max"] = df_int_profile['expected'] + alpha * df_int_std[0]
+     
         check_list = list(df_int.loc[similar_index] > df_area["max"].loc[similar_index])
         alpha_max_lim = alpha
         if not there_is_n_consecutive_violations(check_list, n_allowed_consecutive_violations):
@@ -310,8 +316,8 @@ def adjust_expect_band(df_int, df_profile, df_std):
 
     # TODO: Evaluate if this change makes sense:
     alpha_avg = (abs(alpha_max_lim) + abs(alpha_min_lim))*0.4
-    df_area["max"] = df_area["expected"] + alpha_avg * df_std.values
-    df_area["min"] = df_area["expected"] - alpha_avg * df_std.values
+    df_area["max"] = df_area["expected"] + alpha_avg * df_int_std[0]
+    df_area["min"] = df_area["expected"] - alpha_avg * df_int_std[0]
 
     df_area = pd.concat([df_area, df_int], ignore_index=False, axis=1)
     df_area = df_area[['min', 'max', 'expected']].interpolate()
@@ -360,7 +366,7 @@ def despacho_nacional_programado(str_date):
     df_index = pd.date_range(dt_date, dt_date + pd.Timedelta('23 H 30 m'), freq='60T')
     df_despacho = pd.DataFrame(index=df_index)
     for n_desp in range(9):
-        sql = "SELECT t.Fecha, t.Hora, t.Unidad, t.MV, t.EsRedespacho, t.NumRedespacho" + \
+        sql = "SELECT t.Fecha, t.Hora, t.Unidad, t.MV, t.GrupoGeneracion , t.EsRedespacho, t.NumRedespacho" + \
               " FROM SIVO.dbo.DPL_DespachoProgramado t" + \
               " where Fecha = '{0}'" + \
               " and NumRedespacho = {1}"
@@ -373,10 +379,27 @@ def despacho_nacional_programado(str_date):
 
         if not df.empty:
             try:
-                df = df[df["MV"] > 0]
-                df = df.groupby("Hora").sum()
-                df.index = df_index
-                df_despacho[name_desp] = df["MV"]
+                " Excluir exportaciones "
+                mask1 = (df['GrupoGeneracion'].isin(exclude_list))
+                mask = ~(mask1)
+                " Trabajando con datos "
+                df_gen = df[mask]
+                df_exportacion = df[mask1]
+
+                df_gen = df_gen[df_gen["MV"] > 0]
+                df_gen = df_gen.groupby("Hora").sum()
+
+                df_exportacion = df_exportacion[df_exportacion["MV"]>0]
+                df_exportacion = df_exportacion.groupby("Hora").sum()
+                df_exportacion = pd.concat([pd.DataFrame(index=df_gen.index), df_exportacion], axis=1)
+                df_exportacion.fillna(0, inplace=True)
+
+                """ Restando la exportacion"""
+
+                df_final = df_gen["MV"].subtract(df_exportacion["MV"])
+                df_final.index = df_index
+                df_despacho[name_desp] = df_final
+                # print(df_despacho[name_desp])
             except Exception as e:
                 print(script_path, e)
                 print("Problema al obtener el despacho programado, despacho incompleto")
@@ -405,20 +428,21 @@ def graphic_pronostico_demanda(hmm_modelPath, file_dataPath, tag_name, despacho,
                                   datetime_ini.strftime("%Y-%m-%d"), datetime_fin.strftime("%Y-%m-%d %H:%M:%S"))
 
     df_int = result["df_expected_area"]["real time"]
+    df_expected = result["df_expected_area"]["expected"]
     df_int.dropna(inplace=True)
     family = flag_day(result["family"])
     t_stamp = df_int.index[-1]
-    d_real = int(df_int.loc[t_stamp])
+    d_real = round(df_int.loc[t_stamp],1)
     d_esperada = '---'
 
     # TODO: Una capa encima que ayude a mejorar el pronóstico de la demanda en horas tempranas
     if datetime_fin.hour < 7:
-        result["df_expected_area"]["min"] = np.NAN
-        result["df_expected_area"]["max"] = np.NAN
-        result["df_expected_area"]["expected"] = np.NAN
-
+        result["df_expected_area"]["min"] = result["df_expected_area"]["min"].loc[df_int.index]
+        result["df_expected_area"]["max"] = result["df_expected_area"]["max"].loc[df_int.index]
+        result["df_expected_area"]["expected"] = result["df_expected_area"]["expected"].loc[df_int.index]
+        d_esperada = round(df_expected.loc[t_stamp], 1)
     else:
-        d_esperada = int(result["df_expected_area"]["expected"].loc[t_stamp])
+        d_esperada = round(df_expected.loc[t_stamp],1)
 
     trace_std = trace_df_std(result["df_std"])
 
@@ -437,29 +461,46 @@ def graphic_pronostico_demanda(hmm_modelPath, file_dataPath, tag_name, despacho,
 
 
 
+    df_tab = pd.DataFrame(columns=['Despacho programado', 'real time', 'programado'])
 
     """ Añadir la curva de despacho programado (si existe): """
     if not df_despacho.empty:
         trace_dispatch, last_color = trace_df_despacho(df_despacho)
-        # df_error = df_despacho.iloc[:, -1].sub(df_int, axis=0)
-        df_error = df_int.sub(df_despacho.iloc[:, -1], axis=0)
+        df_error = pd.DataFrame(columns=["programado", "estimado"])
+        df_error["programado"] = df_int.sub(df_despacho.iloc[:, -1], axis=0)
+        df_error["estimado"] = df_int.sub(df_expected,axis=0)
         df_error.dropna(inplace=True)
         trace_deviation = trace_df_error(df_error, last_color)
-        data = [trace_deviation] + trace_std + list_traces_expected_area + trace_dispatch
+        data = trace_deviation + trace_std + list_traces_expected_area + trace_dispatch
         t_prog = df_error.index[-1]
-        d_programada = int(df_despacho.loc[t_prog].values[0])
+        d_programada = round(df_despacho.loc[t_prog].values[0],1)
         h_programada = t_prog.hour
-        desvio_d = d_programada - int(df_int.loc[t_prog])
+        desvio_d = round(df_int.loc[t_prog] - d_programada ,1)
+        # tabular information
+        df_tab = df_despacho
+        df_tab = pd.concat([df_tab, df_int, df_error["programado"]], axis=1)
+        mask = df_tab.index.isin(df_despacho.index)
+        df_tab = df_tab[mask]
+        perc_error = df_error["programado"].abs()/df_int
+        perc_error = perc_error.dropna()
+        p_desvio_d = perc_error.mean()*100
     else:
         data = trace_std + list_traces_expected_area
         d_programada = "---"
         h_programada = "---"
         desvio_d = "---"
+        p_desvio_d = "---"
 
     # graphs = go.Figure(data=data, layout=layout_graph)
+    # print(df_tab.columns)
 
     panel_info = dict(d_real=d_real, d_esperada=d_esperada, d_programada=d_programada,
-                      h_programada=h_programada, family=family, desvio_d=desvio_d)
+                      h_programada=h_programada, family=family, desvio_d=desvio_d,
+                      d_real_list= list(df_tab['real time'].round(1)),
+                      d_programada_list= list(df_tab['Despacho programado'].round(1)),
+                      d_desvio_list= list(df_tab['programado'].round(1)),
+                      p_desvio_d=round(p_desvio_d,1)
+                      )
 
     # panel_info = result
     return dict(data=data, layout=layout_graph, panel_info=panel_info)
@@ -512,14 +553,18 @@ def traces_expected_area_and_real_time(df_expected_area):
     fill = {'min': None, 'max': 'tonexty', 'real time': None, 'expected': None}
     names = {'min': 'Min demanda esperada', 'max': 'Max demanda esperada', 'real time': 'Demanda real',
              'expected': 'Demanda esperada'}
+    show_legend = {'min': False, 'max': False, 'real time': True,
+             'expected': True}
 
     for column in df_expected_area.columns:
         trace = go.Scatter(
             x=df_expected_area.index,
-            y=df_expected_area[column],
+            y=df_expected_area[column].round(1),
             name=names[column],
             mode='line',
             fill=fill[column],
+            # legendgroup='group1',
+            showlegend= show_legend[column],
             line=dict(
                 width=width[column],
                 color=colors[column],
@@ -538,7 +583,8 @@ def trace_df_std(df_std):
     for f in dict_to_draw.keys():
         trace = go.Scatter(
             x=df_std.index,
-            y=df_std*dict_to_draw[f],
+            y=df_std.round(1)*dict_to_draw[f],
+            # legendgroup='group2',
             name="Desviación estándar",
             mode='line',
             fill='tozeroy',
@@ -565,9 +611,10 @@ def trace_df_despacho(df_despacho):
         idx += 1
         trace = go.Scatter(
             x=df_despacho.index,
-            y=df_despacho[column],
+            y=df_despacho[column].round(1),
             name=column,
             mode='line',
+            # legendgroup='group1',
             line=dict(
                 width=3,
                 color=colors[idx],
@@ -579,21 +626,29 @@ def trace_df_despacho(df_despacho):
 
 
 def trace_df_error(df_error, last_color):
-    trace = go.Scatter(
-        x=df_error.index,
-        y=df_error,
-        name="Desviación de demanda",
-        mode='line',
-        xaxis='x',
-        yaxis='y2',
-        line=dict(
-            width=2,
-            color=last_color,
-            dash=None
+    colors = dict(programado=last_color, estimado='rgba(0, 170, 0, 1)')
+    names = dict(programado="Desv. demanda programada", estimado="Desv. demanda esperada")
+    traces = list()
+    # for column in ["programado", "estimado"]:
+    for column in ["programado"]:
+        trace_i = go.Scatter(
+            x=df_error.index,
+            y=df_error[column].round(1),
+            name=names[column],
+            # legendgroup='group2',
+            mode='lines+text',
+            xaxis='x',
+            yaxis='y2',
+            text=[str(x)for x in df_error[column].round(1)],
+            textposition='top center',
+            line=dict(
+                width=2,
+                color=colors[column],
+                dash=None
+            )
         )
-
-    )
-    return trace
+        traces.append(trace_i)
+    return traces
 
 
 def get_layout(style):
@@ -608,6 +663,7 @@ def get_layout(style):
         xaxis=dict(
             domain=[0, 1],
             tickcolor=tick_color[style],
+            dtick=1000*60*60,
             gridcolor='gray'
         ),
         yaxis=dict(
@@ -618,7 +674,7 @@ def get_layout(style):
         yaxis2=dict(
             domain=[0.75, 1.2],
             tickcolor=tick_color[style],
-            gridcolor='gray'
+            gridcolor='rgba(230, 230, 230, 1)'
         ),
         paper_bgcolor=paper_bgcolor[style],
         plot_bgcolor=plot_bgcolor[style],

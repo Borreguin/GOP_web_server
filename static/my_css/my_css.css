@@ -92,6 +92,20 @@ svg{
     white-space: normal;
     font-size: 0.8vw;
 }
+
+@media screen and (min-width: 700px) {
+  .text_stripe {
+     font-size: 12pt;
+  }
+}
+@media screen and (max-width: 700px) {
+  .text_stripe {
+     font-size: 10pt;
+  }
+}
+
+
+
 .value_stripe{
     text-align: center;
     color: black;
@@ -100,6 +114,17 @@ svg{
     font-weight: bold;
     white-space: normal;
     font-size: 1.1vw;
+}
+
+@media screen and (min-width: 700px) {
+  .value_stripe {
+     font-size: 14pt;
+  }
+}
+@media screen and (max-width: 700px) {
+  .value_stripe {
+     font-size: 12pt;
+  }
 }
 
 .col-lg-2_3, .col-lg-3_4, .col-lg-4_5, .col-lg-10_11 {
@@ -131,5 +156,14 @@ svg{
     .col-lg-10_11{
         width: 80%;
     }
+}
+
+.auto_title {
+  font-size: 3vw;
+}
+@media screen and (min-width: 700px) {
+  .auto_title {
+     font-size: 16pt;
+  }
 }
 

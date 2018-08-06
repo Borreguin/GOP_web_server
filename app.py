@@ -20,6 +20,7 @@ warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 import binascii
 from flask import Flask, render_template, jsonify
+import flask_excel as excel
 import json
 import pandas as pd
 
@@ -28,7 +29,7 @@ import os
 script_path = os.path.dirname(os.path.abspath(__file__))
 # default code
 app = Flask(__name__)
-
+excel.init_excel(app)                       # excel functions
 # ______________________________________________________________________________________________________________#
 # ________________________________        GENERAL        VARIABLES       _______________________________________
 
@@ -80,7 +81,7 @@ def layout(name):
     return render_template(html, links=links, title=title, titles=titles, notes=notes)
 
 
-@app.route("/map")
+@app.route("/map_test")
 def create_map():
     map_data = json.load(open('./static/app_data/maps/ecuador_xy.json'))
     df_config = pd.read_excel('./static/app_data/maps/empr_electricas_por_provincia.xlsx')
@@ -121,6 +122,21 @@ def index():
 
 """ End testing part ------------------------------------------------------------------------"""
 """ PRODUCTION PART: Include new pages below this ___________________________________________"""
+
+
+@app.route("/map")
+def map_ecuador():
+    map_data = json.load(open('./static/app_data/maps/ecuador_xy.json'))
+    df_config = pd.read_excel('./static/app_data/maps/empr_electricas_por_provincia.xlsx')
+    to_send = df_config.set_index('id').to_dict('index')
+    title = "Información nacional de distribución"
+    titles = {'sbt1': 'ECUADOR', 'sbt2': 'EMPTY'}
+    notes = {'nt1': 'Este es un ejemplo de uso del mapa del Ecuador',
+             'nt2': 'Sin nota'}
+    links_send = dict()
+    return render_template('pages/mp_ecuador_sala_control.html', map_data=map_data, map_config=to_send,
+                           links=links_send, title=title, titles=titles, notes=notes)
+
 
 
 @app.route("/dashboard")
@@ -241,6 +257,10 @@ def graph_pronostico_demanda(description, date=None, hour=None, style="default")
     return json_data
 
 
+@app.route("/get_graph_layout/<string:style>")
+def define_layout(style):
+    layout_graph = hmm_ap.get_layout(style)
+    return jsonify(layout_graph)
 # ______________________________________________________________________________________________________
 # __________________________________ WEB SERVICES FUNCTIONS ____________________________________________
 
@@ -329,7 +349,70 @@ def get_cons(cons_id_function, parameters=None, id_encrypt=None):
         return jsonify({"error": msg})
 
 
+# -----------------------------------------------------------------------------------------------------------
+#    DOWNLOAD SECTION:
+
+@app.route("/download/pronostico/<string:description>/<string:date>/<string:hour>", methods=['GET'])
+@app.route("/download/pronostico/<string:description>/<string:date>/", methods=['GET'])
+@app.route("/download/pronostico/<string:description>/<string:date>", methods=['GET'])
+@app.route("/download/pronostico/<string:description>/", methods=['GET'])
+@app.route("/download/pronostico/<string:description>", methods=['GET'])
+@app.route("/download/pronostico", methods=['GET'])
+def download_pronostico_file(description, date=None, hour=None, style="default"):
+    if date is None:
+        date = datetime.datetime.now().strftime("%Y-%m-%d")
+    if hour is None:
+        hour = datetime.datetime.now().strftime("%H:%M:%S")
+
+    try:
+        datetime_ini = datetime.datetime.strptime(date, '%Y-%m-%d')
+        datetime_fin = datetime.datetime.strptime(date + " " + hour, '%Y-%m-%d %H:%M:%S')
+    except Exception as e:
+        msg = "Ingrese fecha en el siguiente formato (/yyy-mm-dd/H:M:S)  Ejemplo: /2018-01-01/16:32:12"
+        print(e, msg)
+        return {'graph': {}, layout: {}}
+
+    df_config = pd.read_excel("./hmm_application/config.xlsx")
+    df_config.set_index("description", inplace=True)
+    model_name = df_config.at[description, 'model_name']
+    tag_name = df_config.at[description, 'tag']
+    data_name = model_name.replace("hmm_", "")
+
+    hmm_modelPath_file = hmm_modelPath + model_name
+    file_dataPath_file = file_dataPath + data_name
+    str_date_ini = datetime_ini.strftime("%Y-%m-%d")
+
+    result = hmm_ap.obtain_expected_area(hmm_modelPath_file, file_dataPath_file, tag_name,
+                                         str_date_ini, datetime_fin.strftime("%Y-%m-%d %H:%M:%S"))
+
+    df_despacho = hmm_ap.despacho_nacional_programado(str_date_ini)
+    df_result = result["df_expected_area"]
+    df_result["3.1_Desvio Demanda "] = df_result["real time"] - df_despacho['Despacho programado']
+    df_error = df_result["3.1_Desvio Demanda "]/ df_result["real time"]
+    df_error = df_error.dropna().abs()
+    df_result["3.2_Desvio Demanda (%)"] = df_error*100
+    df_result["3.2_Desvio Demanda (%)"] = df_result["3.2_Desvio Demanda (%)"].round(2)
+    df_result["4_"] = ""
+
+
+    df_result = pd.concat([df_despacho, df_result], axis=1)
+    mask = df_result.index.isin(df_despacho.index)
+    df_result =df_result[mask]
+    # print(df_result.columns)
+    dict_result = df_result.to_dict('list')
+    dict_result['0_Fecha']= [str(x) for x in df_result.index]
+    columns = ['Despacho programado', 'min', 'max', 'expected', 'real time']
+    ind = ['1_Despacho programado', '7_Dmin estimada', '6_Dmax estimada', '5_Demanda esperada', '2_Demanda real']
+    for ix, col in zip(ind, columns):
+        dict_result[ix] = dict_result.pop(col)
+
+    name_file = "pron_" + str_date_ini
+    return excel.make_response_from_dict(dict_result,file_type="xlsx",status=200,file_name=name_file)
+
+
 if __name__ == '__main__':
+    excel.init_excel(app)
     app.run(host='10.30.2.45', port=80)
-    # app.run(host='127.0.0.1', port=80)
+    # app.run(host='127.0.0.1', port=5000)
     # app.run()
+

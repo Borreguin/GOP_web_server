@@ -22,7 +22,10 @@ function draw_panel(to_plot, data_panel, callback) {
 
     // icon size and cell size
 	let icon_width = w_panel*0.30;
+	// define max height
     let cell_height = Math.min(h_panel/n_data, 100);
+    // define min height
+    cell_height = Math.max(h_panel/n_data, 80);
     let real_height = n_data*cell_height;
     let height_size = height + margin.top + margin.bottom;
 

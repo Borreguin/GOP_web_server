@@ -1,11 +1,49 @@
 {% extends "keen_io_dashboard/layouts/hero-twice_90_10/layout.html" %}
 
-
-
-
 {% block grid_1 %}
-    <div id="div_demanda" style="height: 100%">
+    <div id="div_demanda" style="height: 88%">
     </div>
+
+    <div id="div_table" style="height: 10%; width: 100%">
+
+        <table class="table" style="width:92%; padding: 0px; float: left" >
+         <thead>
+              <tr >
+                  <th> </th>
+                  {% for ix in [0, 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23] %}
+                    <th style="font-size: 9pt; text-align: center; padding: 0px"> {{ ix }}:00 </th>
+                  {% endfor %}
+              </tr>
+          </thead>
+          <tbody>
+              <tr>
+                <td class="info" style="padding: 0px"> Programado</td>
+                  {% for ix in [0, 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23] %}
+                        <td id="p_{{ ix }}" class="info" style="font-size: 9pt; text-align: center; padding: 0px"> - </td>
+                  {% endfor %}
+              </tr>
+              <tr>
+                <td class="danger" style="padding: 0px"> Real</td>
+                  {% for ix in [0, 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23] %}
+                        <td id="r_{{ ix }}" class="danger" style="font-size: 9pt; text-align: center; padding: 0px"> - </td>
+                  {% endfor %}
+
+              </tr>
+              <tr>
+                <td style="padding: 0px">Diferencia</td>
+                {% for ix in [0, 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23] %}
+                    <td id="d_{{ ix }}" style="font-size: 9pt; text-align: center; padding: 0px"> - </td>
+                {% endfor %}
+              </tr>
+          </tbody>
+        </table>
+        <div style="width: 6%; float: left; margin-left: 15px">
+            <a id="download_icon" href="#" class="btn btn-default btn-lg" style="font-size: small">
+             <span class="glyphicon glyphicon-file"></span> Descargar
+            </a>
+        </div>
+    </div>
+
 {% endblock %}
 
 {% block grid_2 %}
@@ -20,24 +58,28 @@
     <tbody>
       <tr class="info">
           <td>Demanda programada a <a id="h_programada"> -- </a> h</td>
-          <td id="d_programada"> --- </td>
+          <td id="d_programada" style="font-weight: bold;"> --- </td>
       </tr>
       <tr class="danger">
         <td>Demanda real</td>
-        <td  id="d_real" > --- </td>
+        <td  id="d_real" style="font-weight: bold;" > --- </td>
       </tr>
       <tr class="success">
         <td>Demanda esperada</td>
-        <td id="d_esperada"> --- </td>
+        <td id="d_esperada" style="font-weight: bold;"> --- </td>
 
       </tr>
       <tr class="info">
         <td>Desvío de la demanda a <a id="h_programada"> -- </a> h</td>
-        <td id="desvio_d"> --- </td>
+        <td id="desvio_d" style="font-weight: bold;"> --- </td>
       </tr>
       <tr >
+        <td>Promedio desvío de la demanda</td>
+          <td style="font-weight: bold;"> <a id="p_desvio_d"> --- </a> % </td>
+      </tr>
+       <tr >
         <td>Día comportándose como</td>
-        <td id="family"> --- </td>
+        <td id="family" style="font-weight: bold;"> --- </td>
       </tr>
 
     </tbody>
@@ -54,6 +96,11 @@
            style="margin-top: -8px; height: 70px;">QUITO</a>
     </div>
     <div style="height: 70px;margin-bottom: 3px; overflow: hidden; white-space:nowrap;">
+        <a class="weatherwidget-io" href="https://forecast7.com/es/n2d90n79d01/cuenca/"
+           data-label_1="CUENCA" data-mode="Current" data-days="3" data-theme="weather_one"
+           style="margin-top: -8px; height: 70px;">CUENCA</a>
+    </div>
+    <div style="height: 70px;margin-bottom: 3px; overflow: hidden; white-space:nowrap;">
         <a class="weatherwidget-io" href="https://forecast7.com/es/n2d17n79d92/guayaquil/"
            data-label_1="GUAYAQUIL" data-mode="Current" data-days="3" data-theme="weather_one"
            style="margin-top: -8px; height: 70px;">GUAYAQUIL</a>
@@ -64,7 +111,8 @@
            style="margin-top: -8px; height: 70px;">MANTA</a>
     </div>
     <div style="height: 70px;margin-bottom: 3px; overflow: hidden; white-space:nowrap;">
-        <a class="weatherwidget-io" href="https://forecast7.com/es/n3d15n78d60/milagro/"
+        <!--a class="weatherwidget-io" href="https://forecast7.com/es/n3d15n78d60/milagro/"-->
+        <a class="weatherwidget-io" href="https://forecast7.com/es/n1d96n79d92/guayas/"
            data-label_1="MILAGRO" data-mode="Current" data-days="3" data-theme="weather_one"
            style="margin-top: -8px; height: 70px;">MILAGRO</a>
     </div>
@@ -83,11 +131,16 @@
 {% endblock %}
 
 {% block head_scripts %}
+    <!-- css icons --->
+    <!--link rel="stylesheet" type="text/css" href="/static/js_lib/font-awesome.min.css" /-->
+
+    <!--link rel="stylesheet" href="/static/js_lib/font-awesome.min.css" -->
      <!-- Plotly.js -->
     <script type="text/javascript" src="/static/js_lib/plotly-latest.min.js"></script>
     <script type="text/javascript" src="/static/js_lib/d3.v3.5.17.js"></script>
     <!-- Herramienta para actualizar valores en tiempo real -->
     <script type="text/javascript" src="/static/my_js/pool.js"></script>
+
     <script>
         let description = "{{ titles.sbt1 | safe }}";
         let date = "{{ date | safe }}";
@@ -103,12 +156,19 @@
         let style = "black_style";
         let styles = {default: "#203864", white_style: "white", black_style: "black"};
         let init_ap = true, upd_w = 0;
+        let url_graph;
+        let graph_data_global;
+        let date_arg;
+        let hour_arg;
         function updating_all() {
             update_time_with("fecha_actual",ct_date);
 
-            let date_arg = ct_date.getFullYear() + "-" + (ct_date.getMonth() + 1) + "-" + ct_date.getDate();
-            let hour_arg = ct_date.toLocaleTimeString('it-IT');
-            let url = '/grafica_pronostico/' + description + "/" +  date_arg + "/" + hour_arg + "/" + style;
+            date_arg = ct_date.getFullYear() + "-" + (ct_date.getMonth() + 1) + "-" + ct_date.getDate();
+            hour_arg = ct_date.toLocaleTimeString('it-IT');
+            url_graph = '/grafica_pronostico/' + description + "/" +  date_arg + "/" + hour_arg + "/" + style;
+            url_excel = '/download/pronostico/' + description + "/" +  date_arg + "/" + hour_arg;
+            d3.select("#download_icon")
+                .attr("href", url_excel);
 
             if( ct_date.toDateString() === today_date.toDateString()){
                 if(upd_w % 4 == 0){weather_update();}
@@ -118,23 +178,48 @@
             }
 
             queue()
-                .defer(d3.json, url)
+                .defer(d3.json, url_graph)
                 .await(update_graph);
 
             // increase 5 minutes each time:
-            ct_date = add_time(ct_date, 5);
+            ct_date = add_time(ct_date, 7);
             setTimeout(updating_all, time_minutes*1000*60);
         }
 
         function update_graph(error, graph_data){
+            graph_data_global = graph_data;
             let panel_info = graph_data.panel_info;
             Plotly.react("div_demanda", graph_data.data, graph_data.layout);
             if(init_ap){add_sytles(); init_ap=false;}
+            update_panel_info(panel_info);
+        }
+        function new_graph(error, graph_data) {
+            Plotly.newPlot("div_demanda", graph_data.data, graph_data.layout);
+            add_sytles();
+        }
+
+        function update_panel_info(panel_info){
             for(let info in panel_info){
                 d3.selectAll("#"+info).text(panel_info[info]);
             }
-
+            //d_real_list
+            for(let celd in panel_info.d_real_list){
+                d3.select("#r_" + celd)
+                    .text(panel_info.d_real_list[celd]);
+            }
+            //d_programada_list
+            for(let celd in panel_info.d_programada_list){
+                d3.select("#p_" + celd)
+                    .text(panel_info.d_programada_list[celd]);
+            }
+            // d_desvio_list
+             for(let celd in panel_info.d_desvio_list){
+                d3.select("#d_" + celd)
+                    .text(panel_info.d_desvio_list[celd]);
+            }
         }
+
+
         function add_sytles(){
             let menu_container = d3.select(".modebar");
             for(id in styles){
@@ -149,7 +234,11 @@
                            '</a>')
                     .on("click", function() {
                         style = d3.select(this).attr("id");
-                        updating_all();
+                        url = "/get_graph_layout/" + style;
+                        d3.json(url, function (layout_style) {
+                            graph_data_global.layout = layout_style;
+                            new_graph(null, graph_data_global);
+                        });
                     });
             }
         }
@@ -164,7 +253,34 @@
 
         updating_all();
 
+        let show=true;
+        function toggle_sidebar(){
+            if(show){
+                d3.select("#content")
+                    .attr("class", "col-lg-10_11");
+
+                d3.select("#sidebar")
+                    .style("display", "block");
+
+                d3.select("#btn_toggle")
+                    .text("- info");
+
+                new_graph(null, graph_data_global);
+            }
+            if(!show){
+                d3.select("#content")
+                    .attr("class", "col-lg-12");
+
+                d3.select("#sidebar")
+                    .style("display", "none");
+
+                d3.select("#btn_toggle")
+                    .text("+ info");
+
+                new_graph(null, graph_data_global);
+            }
+            //updating_all();
+            show = !show;
+        }
     </script>
-
-
 {% endblock %}
