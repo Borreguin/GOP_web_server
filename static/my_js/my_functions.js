@@ -74,3 +74,55 @@ function get_groups(objt) {
 function add_time(ct_date, int_time_minutes){
     return new Date(ct_date.getTime() + int_time_minutes*60000);
 }
+
+function createArray(len, itm) {
+    if(len > 0){
+        let arr1 = [itm],
+            arr2 = [];
+        while (len > 0) {
+            if (len && 1) arr2 = arr2.concat(arr1);
+            arr1 = arr1.concat(arr1);
+            len >>>= 1;
+        }
+        return arr2;
+    }
+    else{
+        return [];
+    }
+}
+
+function time_last_15_min(){
+    let dCurrent = new Date();
+    let m = dCurrent.getMinutes();
+    if( 0<m<15){
+        dCurrent.setMinutes(0);
+    }else if(15 < m <30){
+        dCurrent.setMinutes(15);
+    }else if(30< m < 45){
+        dCurrent.setMinutes(30);
+    }else if(45< m <60){
+        dCurrent.setMinutes(45)
+    }
+    dCurrent.setSeconds(0);
+    dCurrent.setMilliseconds(0);
+    return dCurrent;
+}
+
+function time_last_30_min(){
+    let dCurrent = new Date();
+    let m = dCurrent.getMinutes();
+    if( 0<m<30){
+        dCurrent.setMinutes(0);
+    }else if(m > 30){
+        dCurrent.setMinutes(30)
+    }
+    dCurrent.setSeconds(0);
+    dCurrent.setMilliseconds(0);
+    return dCurrent;
+}
+
+
+let formatNumber = d3.format(",.0f"),    // zero decimal places
+format_w_spaces = function (d) {
+    return formatNumber(d).replace(/,/g, ' ').replace(/\./, ',');
+};

@@ -55,6 +55,7 @@ def encrypt_tag_obj(obj_w_tag):
     if isinstance(obj_w_tag, list):
         for d in obj_w_tag:
             if 'tag' in d.keys():
+                print(d['tag'])
                 d['tag'] = encrypt(d['tag'], default_key)
         return obj_w_tag
 

@@ -8,6 +8,7 @@ import pandas as pd
 import sys
 import clr
 import datetime
+import numpy as np
 
 sys.path.append(r'C:\Program Files (x86)\PIPC\AF\PublicAssemblies\4.0')
 clr.AddReference('OSIsoft.AFSDK')
@@ -65,6 +66,17 @@ class PIserver:
         str_td = dt.strftime("%Y-%m-%d")
         return AFTimeRange(str_td, str(dt))
 
+    @property
+    def time_range_for_today_all_day(self, ):
+        """
+        Time range of the current day from 0:00 to current time
+        :return:
+        """
+        dt = datetime.datetime.now()
+        str_td = dt.strftime("%Y-%m-%d")
+        dt_fin = dt.date() + datetime.timedelta(days=1)
+        return AFTimeRange(str_td, dt_fin.strftime("%Y-%m-%d"))
+
     @staticmethod
     def span(delta_time):
         """
@@ -77,7 +89,7 @@ class PIserver:
             span = AFTimeSpan.Parse(delta_time)
         except Exception as e:
             print(e)
-            print("[pi_connect] [{0}] no correct format".format(ini_time, end_time))
+            print("[pi_connect] [{0}] no correct format".format(delta_time))
         return span
 
     def interpolated_of_tag_list(self, tag_list, time_range, span):
@@ -97,6 +109,20 @@ class PIserver:
 
         for piPoint in pi_points[1:]:
             df_result = pd.concat([df_result, piPoint.interpolated(time_range, span, numeric=False)], axis=1)
+
+        return df_result
+
+    def snapshot_of_tag_list(self, tag_list, time):
+
+        df_result = pd.DataFrame(columns=tag_list, index=[str(time)])
+
+        for tag in tag_list:
+            try:
+                pt = PI_point(self,tag)
+                df_result[tag] = pt.interpolated_value(time)
+            except Exception as e:
+                print(e)
+                df_result[str(tag)] = np.nan
 
         return df_result
 
@@ -126,6 +152,8 @@ class PI_point:
             print("[pi_connect] [{0}, {1}] no correct object".format(time_range, span))
         if as_df:
             values = to_df(values, self.tag_name, numeric=numeric)
+            mask = ~values.index.duplicated()
+            values = values[mask]
         return values
 
     def plot_values(self, time_range, n_samples, as_df=True, numeric=True):
@@ -188,6 +216,21 @@ class PI_point:
             print("[pi_connect] [{0}, {1}, {2}] no correct object".format(time_range, span, AFSummaryTypes))
 
         return values
+
+    def interpolated_value(self, timestamp):
+
+        if isinstance(timestamp,datetime.datetime):
+            timestamp = str(timestamp)
+
+        try:
+            time = AFTime(timestamp)
+        except Exception as e:
+            time = AFTime(str(datetime.datetime.now()))
+            print(e)
+            print("[pi_connect] [{0}] no correct format".format(timestamp))
+
+        return self.pt.InterpolatedValue(time).Value
+
 
     def snapshot(self):
         return self.pt.Snapshot()

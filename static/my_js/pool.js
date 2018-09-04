@@ -10,12 +10,12 @@ function update_values_for(class_to_refresh){
     let tags_div = d3.selectAll("." + class_);
     //let tags = tags_div["_groups"][0]; // d3_v4 !!
     let tags = get_groups(tags_div);
-    // console.log(tags);
+    console.log(tags);
     for(let t in tags){
         if( !Number.isInteger(parseInt(t))){continue;}
         // console.log(t);
         let id = tags[t].id;
-            let url = '/tag/' + id;
+            let url = id;
             queue()
                 .defer(d3.json, url)
                 .await(update_value)

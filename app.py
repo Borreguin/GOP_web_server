@@ -19,7 +19,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 import binascii
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, Response
 import flask_excel as excel
 import json
 import pandas as pd
@@ -149,7 +149,7 @@ def prepare_dashboard():
     # Configurations for icon panel:
     data_panel = pd.read_excel("static/app_data/produccion_energetica/produccion_energetica.xlsx")
     data_panel = data_panel.to_dict('register')
-    data_panel = en.encrypt_tag_obj(data_panel)
+    # data_panel = en.encrypt_tag_obj(data_panel)
     # data_panel = en.decrypt_tag_obj(data_panel)
 
     # data for donut
@@ -267,12 +267,16 @@ def define_layout(style):
 
 @app.route("/tag/<string:tag_id>")
 def get_snapshot(tag_id):
+
+    """
     try:
         tagname = en.decrypt(tag_id)
     except binascii.Error:
         msg = 'Tag no encriptada'
         print('[get_snapshot]:' + msg)
         return jsonify({"error": msg})
+    """
+    tagname = tag_id
 
     if '/cal/' in tagname or '/con/' in tagname:
         n = tagname[6:].find('/')
@@ -315,13 +319,27 @@ def get_cal(cal_id_function, parameters=None, id_encrypt=None):
             result = method_to_call(*params)
 
         if isinstance(result, dict):
-            result['id'] = id_encrypt
+            if parameters is None:
+                result['id'] = '/cal/' + cal_id_function
+            else:
+                result['id'] = '/cal/' +  cal_id_function + "/" + str(parameters)
 
+        if isinstance(result, pd.DataFrame):
+            result.index = [str(x) for x in result.index]
+            try:
+                result = result.to_json(orient="columns")
+            except Exception as e:
+                result = result.to_json(orient="records")
+
+            resp = Response(response=result,
+                            status=200,
+                            mimetype="application/json")
+            return resp
         return jsonify(result)
 
     except Exception as e:
         print(e)
-        msg = "[get_cal] [{0}] There is a error in module calc".format(cal_id_function)
+        msg = "[get_cal] [{0}] There is an error in module calc".format(cal_id_function)
         print("[" + script_path + "] \t" + msg)
         return jsonify({"error": msg})
 

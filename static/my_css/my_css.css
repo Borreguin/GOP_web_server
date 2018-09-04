@@ -163,7 +163,54 @@ svg{
 }
 @media screen and (min-width: 700px) {
   .auto_title {
-     font-size: 16pt;
+     font-size: 14pt;
   }
 }
 
+
+.float_container{
+    position: absolute;
+    z-index: 1000;
+    color: white;
+    display: inline-block;
+    margin: 0;
+}
+
+
+.float_title_white{
+
+    z-index: 1000;
+    color: white;
+    font-family: Raleway, HelveticaNeue, Helvetica Neue, Helvetica, Arial, sans-serif;
+    font-size: 18pt;
+    display: inline-block;
+    line-height: 1.4em;
+    margin: 0;
+    border-bottom: 1.5px solid hsla(0,0%,100%,.4);
+    letter-spacing: .05em;
+    text-align: right;
+}
+@media screen and (max-width: 800px) {
+  .float_title_white {
+     font-size: 12pt;
+  }
+}
+
+
+.float_value_white{
+
+    z-index: 1000;
+    color: white;
+    font-family: Fjalla One;
+    font-size: 18pt;
+    display: inline-block;
+    margin: 0;
+    line-height: 1.4em;
+    letter-spacing: .05em;
+    text-align: right;
+}
+@media screen and (max-width: 800px) {
+  .float_value_white {
+     font-size: 12pt;
+  }
+}

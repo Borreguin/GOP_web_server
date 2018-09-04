@@ -1,0 +1,21 @@
+.node rect {
+  cursor: move;
+  fill-opacity: .9;
+  shape-rendering: crispEdges;
+}
+
+.node text {
+  pointer-events: none;
+  /*text-shadow: 0 1px 0 #fff;*/
+  fill: white;
+}
+
+.link {
+  fill: none;
+  stroke: #ffffff;
+  stroke-opacity: .2;
+}
+
+.link:hover {
+  stroke-opacity: .5;
+}

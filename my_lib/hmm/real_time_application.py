@@ -15,6 +15,7 @@ from my_lib.holidays import holidays as hl
 from my_lib.GOP_connection import GOPserver as op
 import datetime
 import os
+
 script_path = os.path.dirname(os.path.abspath(__file__))
 
 # from plotly import tools  # to do subplots
@@ -39,6 +40,7 @@ gop_svr = op.GOPserver()
 
 # Exportación Ecuador Colombia
 exclude_list = ['XMEMEXPU04', 'COESEXPU02', 'XMEMEXPU02']
+
 
 def day_cluster_matrix(hmm_model, df_y):
     """
@@ -146,9 +148,9 @@ def get_expected_profiles_from(df_mean, df_with, n_expected_clusters):
     similar_index = df_intepolate.index.intersection(df_with.index)
     df_mean_pt = df_intepolate.loc[similar_index]
     # df_with = df_with.loc[similar_index]
-    max_value = max(df_with.values.max(),df_intepolate.values.max())
+    max_value = max(df_with.values.max(), df_intepolate.values.max())
 
-    df_mean_pt, df_with = df_mean_pt/max_value, df_with/max_value
+    df_mean_pt, df_with = df_mean_pt / max_value, df_with / max_value
     df_error = df_mean_pt.sub(df_with.T, axis=0)
     # df_error = df_error.div(df_with.T, axis=0)
     # result = (df_error.sum() / n_real_time)*100
@@ -204,7 +206,7 @@ def obtain_expected_area(model_path, data_path, tag_name, str_time_ini, str_time
     pi_svr = pi.PIserver()
     pt = pi.PI_point(pi_svr, tag_name)
     time_range = pi_svr.time_range(str_time_ini, str_time_end)
-    span = pi_svr.span("15m")       # Sampled in each 30 min
+    span = pi_svr.span("15m")  # Sampled in each 30 min
     df_int = pt.interpolated(time_range, span)
     d_week = df_int.index[0].weekday_name
 
@@ -232,20 +234,26 @@ def obtain_expected_area(model_path, data_path, tag_name, str_time_ini, str_time
 
         """ Find the n best profiles """
         family_error = np.inf
-        for n_profiles in range(1, n_profiles_to_see + 1):
+        for n_profiles in range(0, n_profiles_to_see + 1):
 
-            rs = get_expected_profiles_from(df_model_mean, df_with=df_int[tag_name],
+            if n_profiles == 0:
+                rs = list(df_model_mean.index[:n_profiles_to_see])
+
+            else:
+                rs = get_expected_profiles_from(df_model_mean, df_with=df_int[tag_name],
                                             n_expected_clusters=n_profiles)
+                rs = list(rs.index.values)
 
+            # print(rs)
             """ Define the n best expected profiles and the shape of the expected profile """
-            expected_profiles = list(rs.index.values)
+            expected_profiles = rs
             df_profile, df_profile_std = define_profile_area_from(expected_profiles, df_model_mean, df_model_std)
             df_std = df_profile_std.mean()
 
             """ Find the expected area and adjust the band to do not make n violations """
             df_expected_area, alpha_min_max = adjust_expect_band(df_int[tag_name], df_profile, df_std)
             error = estimate_error(df_int[tag_name], df_expected_area["expected"])
-
+            # print(error)
             alpha_min_max[0], alpha_min_max[1] = abs(alpha_min_max[0]), abs(alpha_min_max[1])
 
             # if error < min_error and alpha_min_max[0] < max_alpha and alpha_min_max[1] < max_alpha:
@@ -266,6 +274,7 @@ def obtain_expected_area(model_path, data_path, tag_name, str_time_ini, str_time
                 family_error_dict[family] = error
                 result["family_error"] = family_error_dict
 
+    # print(result["expected_profiles"])
     return result
 
 
@@ -295,15 +304,17 @@ def adjust_expect_band(df_int, df_profile, df_std):
         check_list = list(df_int.loc[similar_index] < df_area["min"].loc[similar_index])
         alpha_min_lim = alpha
         if not there_is_n_consecutive_violations(check_list, n_allowed_consecutive_violations):
+            # print(alpha)
             break
 
     for alpha in alpha_values:
         # df_area["max"] = df_profile['max'] + alpha * df_std.values
         df_area["max"] = df_int_profile['expected'] + alpha * df_int_std[0]
-     
+
         check_list = list(df_int.loc[similar_index] > df_area["max"].loc[similar_index])
         alpha_max_lim = alpha
         if not there_is_n_consecutive_violations(check_list, n_allowed_consecutive_violations):
+            # print(alpha)
             break
 
     alpha_min_lim += min_step
@@ -315,7 +326,7 @@ def adjust_expect_band(df_int, df_profile, df_std):
     df_area["expected"] = (df_area["max"] + df_area["min"]) * 0.505
 
     # TODO: Evaluate if this change makes sense:
-    alpha_avg = (abs(alpha_max_lim) + abs(alpha_min_lim))*0.4
+    alpha_avg = (abs(alpha_max_lim) + abs(alpha_min_lim)) * 0.4
     df_area["max"] = df_area["expected"] + alpha_avg * df_int_std[0]
     df_area["min"] = df_area["expected"] - alpha_avg * df_int_std[0]
 
@@ -349,7 +360,7 @@ def there_is_n_consecutive_violations(check_list, n_violations):
 
     if len(check_list) == 0:
         return True
-    if str(check_list).find(str(str_violations)) >= 0 or check_list[-1]:
+    elif str(check_list).find(str(str_violations)) >= 0 :
         return True
     else:
         return False
@@ -381,7 +392,7 @@ def despacho_nacional_programado(str_date):
             try:
                 " Excluir exportaciones "
                 mask1 = (df['GrupoGeneracion'].isin(exclude_list))
-                mask = ~(mask1)
+                mask = ~mask1
                 " Trabajando con datos "
                 df_gen = df[mask]
                 df_exportacion = df[mask1]
@@ -389,7 +400,7 @@ def despacho_nacional_programado(str_date):
                 df_gen = df_gen[df_gen["MV"] > 0]
                 df_gen = df_gen.groupby("Hora").sum()
 
-                df_exportacion = df_exportacion[df_exportacion["MV"]>0]
+                df_exportacion = df_exportacion[df_exportacion["MV"] > 0]
                 df_exportacion = df_exportacion.groupby("Hora").sum()
                 df_exportacion = pd.concat([pd.DataFrame(index=df_gen.index), df_exportacion], axis=1)
                 df_exportacion.fillna(0, inplace=True)
@@ -413,6 +424,7 @@ def graphic_pronostico_demanda(hmm_modelPath, file_dataPath, tag_name, despacho,
     """
     Realiza el gráfico de pronóstico de la demanda usando el modelo HMM, el data set de muestras y
     la señal en tiempo real
+    :param despacho: despacho programado
     :param style: Define el estilo de la gráfica
     :param hmm_modelPath: path del modelo HMM a usar
     :param file_dataPath: path del dataset a usar
@@ -422,7 +434,7 @@ def graphic_pronostico_demanda(hmm_modelPath, file_dataPath, tag_name, despacho,
     :return:  La gráfica en formato {data=data, layout=layout}
     """
 
-    layout_graph = get_layout(style)     # Layout definida para el gráfico
+    layout_graph = get_layout(style)  # Layout definida para el gráfico
     """ Obtener el area esperada de acuerdo al modelo HMM, sus observaciones y la tendencia en tiempo real """
     result = obtain_expected_area(hmm_modelPath, file_dataPath, tag_name,
                                   datetime_ini.strftime("%Y-%m-%d"), datetime_fin.strftime("%Y-%m-%d %H:%M:%S"))
@@ -432,7 +444,7 @@ def graphic_pronostico_demanda(hmm_modelPath, file_dataPath, tag_name, despacho,
     df_int.dropna(inplace=True)
     family = flag_day(result["family"])
     t_stamp = df_int.index[-1]
-    d_real = round(df_int.loc[t_stamp],1)
+    d_real = round(df_int.loc[t_stamp], 1)
     d_esperada = '---'
 
     # TODO: Una capa encima que ayude a mejorar el pronóstico de la demanda en horas tempranas
@@ -442,7 +454,7 @@ def graphic_pronostico_demanda(hmm_modelPath, file_dataPath, tag_name, despacho,
         result["df_expected_area"]["expected"] = result["df_expected_area"]["expected"].loc[df_int.index]
         d_esperada = round(df_expected.loc[t_stamp], 1)
     else:
-        d_esperada = round(df_expected.loc[t_stamp],1)
+        d_esperada = round(df_expected.loc[t_stamp], 1)
 
     trace_std = trace_df_std(result["df_std"])
 
@@ -459,8 +471,6 @@ def graphic_pronostico_demanda(hmm_modelPath, file_dataPath, tag_name, despacho,
         # TODO: Realizar la consulta de despacho programado dependiendo de cada entidad (Quito, Guayaquil, etc)
         df_despacho = pd.DataFrame()
 
-
-
     df_tab = pd.DataFrame(columns=['Despacho programado', 'real time', 'programado'])
 
     """ Añadir la curva de despacho programado (si existe): """
@@ -468,22 +478,23 @@ def graphic_pronostico_demanda(hmm_modelPath, file_dataPath, tag_name, despacho,
         trace_dispatch, last_color = trace_df_despacho(df_despacho)
         df_error = pd.DataFrame(columns=["programado", "estimado"])
         df_error["programado"] = df_int.sub(df_despacho.iloc[:, -1], axis=0)
-        df_error["estimado"] = df_int.sub(df_expected,axis=0)
+        df_error["estimado"] = df_int.sub(df_expected, axis=0)
         df_error.dropna(inplace=True)
         trace_deviation = trace_df_error(df_error, last_color)
         data = trace_deviation + trace_std + list_traces_expected_area + trace_dispatch
         t_prog = df_error.index[-1]
-        d_programada = round(df_despacho.loc[t_prog].values[0],1)
+        d_programada = round(df_despacho.loc[t_prog].values[0], 1)
         h_programada = t_prog.hour
-        desvio_d = round(df_int.loc[t_prog] - d_programada ,1)
+        desvio_d = round(df_int.loc[t_prog] - d_programada, 1)
         # tabular information
         df_tab = df_despacho
         df_tab = pd.concat([df_tab, df_int, df_error["programado"]], axis=1)
         mask = df_tab.index.isin(df_despacho.index)
         df_tab = df_tab[mask]
-        perc_error = df_error["programado"].abs()/df_int
+        perc_error = df_error["programado"].abs() / df_int
         perc_error = perc_error.dropna()
-        p_desvio_d = perc_error.mean()*100
+        p_desvio_d = perc_error.mean() * 100
+        p_desvio_d = round(p_desvio_d, 1)
     else:
         data = trace_std + list_traces_expected_area
         d_programada = "---"
@@ -496,10 +507,10 @@ def graphic_pronostico_demanda(hmm_modelPath, file_dataPath, tag_name, despacho,
 
     panel_info = dict(d_real=d_real, d_esperada=d_esperada, d_programada=d_programada,
                       h_programada=h_programada, family=family, desvio_d=desvio_d,
-                      d_real_list= list(df_tab['real time'].round(1)),
-                      d_programada_list= list(df_tab['Despacho programado'].round(1)),
-                      d_desvio_list= list(df_tab['programado'].round(1)),
-                      p_desvio_d=round(p_desvio_d,1)
+                      d_real_list=list(df_tab['real time'].round(1)),
+                      d_programada_list=list(df_tab['Despacho programado'].round(1)),
+                      d_desvio_list=list(df_tab['programado'].round(1)),
+                      p_desvio_d=p_desvio_d
                       )
 
     # panel_info = result
@@ -523,6 +534,7 @@ def flag_day(family):
         return tags[family] + day_type
     else:
         return "No determinado"
+
 
 """
     GRAPHICAL PART OF THIS MODULE
@@ -549,12 +561,12 @@ def traces_expected_area_and_real_time(df_expected_area):
     colors = {'min': 'rgba(210, 210, 210, .4)', 'max': 'rgba(210, 210, 210, .4)', 'real time': 'red',
               'expected': 'rgba(0, 170, 0, 1)'}
     width = {'min': 1, 'max': 1, 'real time': 4, 'expected': 2}
-    dash = {'min': None, 'max': None, 'real time': None, 'expected': None} #dashdot
+    dash = {'min': None, 'max': None, 'real time': None, 'expected': None}  # dashdot
     fill = {'min': None, 'max': 'tonexty', 'real time': None, 'expected': None}
     names = {'min': 'Min demanda esperada', 'max': 'Max demanda esperada', 'real time': 'Demanda real',
              'expected': 'Demanda esperada'}
     show_legend = {'min': False, 'max': False, 'real time': True,
-             'expected': True}
+                   'expected': True}
 
     for column in df_expected_area.columns:
         trace = go.Scatter(
@@ -564,7 +576,7 @@ def traces_expected_area_and_real_time(df_expected_area):
             mode='line',
             fill=fill[column],
             # legendgroup='group1',
-            showlegend= show_legend[column],
+            showlegend=show_legend[column],
             line=dict(
                 width=width[column],
                 color=colors[column],
@@ -583,7 +595,7 @@ def trace_df_std(df_std):
     for f in dict_to_draw.keys():
         trace = go.Scatter(
             x=df_std.index,
-            y=df_std.round(1)*dict_to_draw[f],
+            y=df_std.round(1) * dict_to_draw[f],
             # legendgroup='group2',
             name="Desviación estándar",
             mode='line',
@@ -603,7 +615,6 @@ def trace_df_std(df_std):
 
 
 def trace_df_despacho(df_despacho):
-
     traces = list()
     colors = ['rgba(26, 198, 255, 1)', 'rgba(102, 255, 194, 1)', 'rgba(255, 255, 102, 1)', 'rgba(255, 255, 255, 1)']
     idx = -1
@@ -639,7 +650,7 @@ def trace_df_error(df_error, last_color):
             mode='lines+text',
             xaxis='x',
             yaxis='y2',
-            text=[str(x)for x in df_error[column].round(1)],
+            text=[str(x) for x in df_error[column].round(1)],
             textposition='top center',
             line=dict(
                 width=2,
@@ -652,7 +663,6 @@ def trace_df_error(df_error, last_color):
 
 
 def get_layout(style):
-
     tick_color = {"default": "white", "white_style": "black", "black_style": "white"}
     paper_bgcolor = {"default": 'rgba(32, 56, 100, .9)', "white_style": "white", "black_style": 'rgba(15, 15, 15, 1)'}
     plot_bgcolor = {"default": 'rgba(32, 56, 50, 0.5)', "white_style": 'white', "black_style": "black"}
@@ -663,7 +673,7 @@ def get_layout(style):
         xaxis=dict(
             domain=[0, 1],
             tickcolor=tick_color[style],
-            dtick=1000*60*60,
+            dtick=1000 * 60 * 60,
             gridcolor='gray'
         ),
         yaxis=dict(

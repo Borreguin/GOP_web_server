@@ -1,25 +1,110 @@
 {% extends "keen_io_dashboard/layouts/total_panel/layout.html" %}
 {% block head_scripts %}
-    <script>
-        const map_data = JSON.parse('{{ map_data | tojson | safe}}');
-        const map_config = JSON.parse('{{ map_config | tojson | safe}}');
-        let map_selection = "all";
-    </script>
+
+    <link href="/static/my_css/my_css.css" rel="stylesheet" type="text/css" />
+    <link href="https://fonts.googleapis.com/css?family=Fjalla+One" rel="stylesheet">
+    <link href="/static/my_css/sankey.css" rel="stylesheet" type="text/css" />
+
+    <script type="text/javascript" src="/static/my_js/maps/ammap_lib3.js"></script>
+    <script type="text/javascript" src="/static/my_js/maps/Ecuador_in_world.js"></script>
+    <script type="text/javascript" src="/static/my_js/maps/Ecuador_only.js"></script>
+    <script type="text/javascript" src="/static/my_js/maps/ecuadorLow_extra.js"></script>
+    <script type="text/javascript" src="/static/my_js/maps/worldHigh.js"></script>
+
+    <script type="text/javascript" src="/static/js_lib/jquery.min.js"></script>
+    <!-- Plotly.js -->
+    <script type="text/javascript" src="/static/js_lib/plotly-latest.min.js"></script>
+    <!-- implementación de niveles -->
+    <script type="text/javascript" src="/static/my_js/maps/niveles.js"></script>
+    <!-- D3.js library -->
+    <script type="text/javascript" src="/static/js_lib/d3.v3.5.17.js" charset="utf-8"></script>
+
+    <script type="text/javascript" src="/static/js_lib/sankey.js"></script>
+    <script type="text/javascript" src="/static/my_js/draw_sankey.js"></script>
+
+{% endblock %}
+
+{% block controls %}
+    <div id="controls" style="position: absolute; top: 70px; right: 2%; z-index: 10;">
+        <button class="glyphicon glyphicon-globe btn" title="Inicio" onclick="nivel_global();"
+                style="font-size: 14pt; background: transparent">
+        </button>
+        <button class="glyphicon  glyphicon-tree-conifer btn" title="Nivel regional" onclick="nivel_regional();"
+                style="font-size: 14pt; background: transparent">
+        </button>
+
+        <button class="glyphicon glyphicon-briefcase btn" title="Nivel empresarial" onclick="nivel_empresarial();"
+                style="font-size: 14pt; background: transparent">
+        </button>
+
+         <button class="glyphicon glyphicon-screenshot btn" title="Nivel provincial" onclick="nivel_provincial();"
+                style="font-size: 14pt; background: transparent">
+        </button>
+
+    </div>
+{%  endblock %}
+
+{% block panels %}
+
+    <div id="panel_flotante_superior">
+        <div id="panel_1"  class="float_container" style="top: 10%; left: 1%; width: 20em; height: 12em">
+          <div class="float_title_white" style="width: 100%"> DEMANDA NACIONAL </div>
+            <div class="float_value_white" style="width: 100%"> <span id="demanda"> ----- </span>  MW</div>
+        </div>
+
+        <div id="panel_2"  class="float_container" style="top: 20%; left: 1%; width: 20em; height: 12em">
+          <div class="float_title_white" style="width: 100%"> GENERACIÓN TOTAL </div>
+            <div class="float_value_white" style="width: 100%"> <span id="produccion_mw"> ------ </span></div>
+        </div>
+
+        <div id="panel_3"  class="float_container" style="top: 20%; left: 24em; width: 20em; height: 12em">
+          <div class="float_title_white" style="width: 100%"> RESERVA </div>
+            <div class="float_value_white" style="width: 100%"> <span id="reserva"> ------ </span> MW</div>
+        </div>
+
+        <div id="panel_4"  class="float_container" style="top: 30%; left: 1%; width: 20em; height: 12em">
+          <div class="float_title_white" style="width: 100%"> EXPORTACIÓN </div>
+            <div class="float_value_white" style="width: 100%"> <span id="exportacion_mw"> ------ </span></div>
+        </div>
+
+        <div id="panel_5"  class="float_container" style="top: 30%; left: 24em; width: 20em; height: 12em">
+          <div class="float_title_white" style="width: 100%"> IMPORTACIÓN </div>
+            <div class="float_value_white" style="width: 100%"> <span id="importacion_mw"> ------ </span> MW</div>
+        </div>
+
+
+        <div id="panel_2"  class="float_container" style="top: 55%; left: 72%; width: 18em; height: 12em">
+          <div class="float_value_white" style="width: 100%"> N° SUBESTACIONES: </div>
+        </div>
+
+        <div id="panel_2"  class="float_container" style="top: 60%; left: 74%; width: 8em; height: 12em">
+          <div class="float_title_white" style="width: 100%"> 500 kV </div>
+            <div class="float_value_white" style="width: 100%"> <span id="sub_500_total"> 4 </span></div>
+        </div>
+
+        <div id="panel_3"  class="float_container" style="top: 60%; left: 82%; width: 8em; height: 12em">
+          <div class="float_title_white" style="width: 100%"> 230 kV </div>
+            <div class="float_value_white" style="width: 100%"> <span id="sub_230_total"> 26 </span></div>
+        </div>
+
+        <div id="panel_4"  class="float_container" style="top: 60%; left: 90%; width: 8em; height: 12em">
+          <div class="float_title_white" style="width: 100%"> 138 kV </div>
+            <div class="float_value_white" style="width: 100%"> <span id="sub_138_total"> 54 </span></div>
+        </div>
+    </div>
+
+
+
+
+
 {% endblock %}
 
 {% block body_scripts %}
-        <script type="text/javascript" src="/static/js_lib/d3.js"></script>
-        <script type="text/javascript" src="/static/my_js/map_util.js"></script>
-		<script>
-            console.log("Starting Ecuador map...");
-/*
-            queue()
-                .defer(make_map, "#grid_1", "all")
-                .await(config_map);
 
-            function config_map() {
-                assign_color(map_config);
-                assign_function();
-            }*/
-        </script>
+
+    <script type="text/javascript" src="/static/my_js/mp_ecuador_sala_control.js"></script>
+
+
+
+
 {% endblock %}

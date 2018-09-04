@@ -181,8 +181,8 @@
                 .defer(d3.json, url_graph)
                 .await(update_graph);
 
-            // increase 5 minutes each time:
-            ct_date = add_time(ct_date, 7);
+            // increase X minutes each time:
+            ct_date = add_time(ct_date, time_minutes);
             setTimeout(updating_all, time_minutes*1000*60);
         }
 
