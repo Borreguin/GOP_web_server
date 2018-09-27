@@ -94,13 +94,13 @@ function createArray(len, itm) {
 function time_last_15_min(){
     let dCurrent = new Date();
     let m = dCurrent.getMinutes();
-    if( 0<m<15){
+    if( 0< m && m <15){
         dCurrent.setMinutes(0);
-    }else if(15 < m <30){
+    }else if(15 < m && m  <30){
         dCurrent.setMinutes(15);
-    }else if(30< m < 45){
+    }else if(30< m && m  < 45){
         dCurrent.setMinutes(30);
-    }else if(45< m <60){
+    }else if(45< m && m  <60){
         dCurrent.setMinutes(45)
     }
     dCurrent.setSeconds(0);
@@ -111,7 +111,7 @@ function time_last_15_min(){
 function time_last_30_min(){
     let dCurrent = new Date();
     let m = dCurrent.getMinutes();
-    if( 0<m<30){
+    if( 0< m && m <30){
         dCurrent.setMinutes(0);
     }else if(m > 30){
         dCurrent.setMinutes(30)
@@ -126,3 +126,56 @@ let formatNumber = d3.format(",.0f"),    // zero decimal places
 format_w_spaces = function (d) {
     return formatNumber(d).replace(/,/g, ' ').replace(/\./, ',');
 };
+
+function stop_all(){
+    try {
+        window.stop();
+    } catch (exception) {
+        document.execCommand('Stop');
+    }
+}
+
+function stackedArea(traces) {
+	for(var i=1; i<traces.length; i++) {
+		for(var j=0; j<(Math.min(traces[i]['y'].length, traces[i-1]['y'].length)); j++) {
+		    if(traces[i-1]['y'][j] != null){
+			    traces[i]['y'][j] += traces[i-1]['y'][j];
+			}else
+			{
+			    traces[i]['y'][j] = null;
+			}
+
+		}
+	}
+	return traces;
+}
+
+
+function to_yyyy_mm_dd_hh_mm_ss(ct){
+
+    return ct.getFullYear() + "-" + (ct.getMonth()+1) + "-" + ct.getDate() + " "
+            + ct.getHours() + ":" + ct.getMinutes() + ":" + ct.getSeconds();
+}
+
+/*
+queue()
+    .defer(f1, "Vamos")
+    .defer(f2, "tiene que salir")
+    .await(f3);
+
+function f1(str1, callback){
+    console.log("f1:" + str1);
+    error = null;
+    callback(error, str1);
+}
+
+function f2(p2, callback){
+    console.log("f2:" + p2);
+    error = null;
+    callback(error, p2);
+}
+
+function f3(error, str1, str2){
+    console.log("f3:" + str1 + str2);
+    return str1 + str2;
+}*/

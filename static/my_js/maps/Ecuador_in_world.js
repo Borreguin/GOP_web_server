@@ -1,17 +1,19 @@
 
 
-function draw_ecuador_in_world( to_plot){
+function draw_ecuador_in_world( to_plot, callback){
 	
 	
 	let map = AmCharts.makeChart( to_plot, {
 					"type": "map",
-					"pathToImages": "http://www.amcharts.com/lib/3/images/",
+					// "pathToImages": "http://www.amcharts.com/lib/3/images/",
+					"creditsPosition": "bottom-right",
 					"addClassNames": true,
 					"fontSize": 15,
 					"color": "black",
 					"projection": "equirectangular",
 					"backgroundAlpha": 1,
-					"backgroundColor": "rgba(37,97,142,1)",
+					// "backgroundColor": "rgba(37,97,142,1)",
+					"backgroundColor": "black",
 					"dataProvider": {
 						"map": "worldHigh",
 						"getAreasFromMap": true,
@@ -121,6 +123,12 @@ function draw_ecuador_in_world( to_plot){
 				//city.validate();
 			}
     map.validateNow();
-			return map;
+	if(callback === undefined){
+	    return map;
+	}else{
+	    callback(null, map);
+	}
+
+
 }
 

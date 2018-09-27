@@ -170,7 +170,7 @@ svg{
 
 .float_container{
     position: absolute;
-    z-index: 1000;
+    z-index: 10;
     color: white;
     display: inline-block;
     margin: 0;
@@ -179,7 +179,7 @@ svg{
 
 .float_title_white{
 
-    z-index: 1000;
+    z-index: 10;
     color: white;
     font-family: Raleway, HelveticaNeue, Helvetica Neue, Helvetica, Arial, sans-serif;
     font-size: 18pt;
@@ -199,7 +199,7 @@ svg{
 
 .float_value_white{
 
-    z-index: 1000;
+    z-index: 10;
     color: white;
     font-family: Fjalla One;
     font-size: 18pt;
@@ -213,4 +213,51 @@ svg{
   .float_value_white {
      font-size: 12pt;
   }
+}
+
+
+/* The Modal (background) */
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 100; /* Sit on top */
+    padding-top: 100px; /* Location of the box */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgb(0,0,0); /* Fallback color */
+    background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+}
+
+/* Modal Content */
+.modal-content {
+    background-color: #fefefe;
+    margin: auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+}
+
+/* The Close Button */
+.close {
+    color: #ff1a1a;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    opacity: 0.9;
+}
+
+.close:hover,
+.close:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+    opacity: 0.9;
+}
+
+.modalTitle{
+    color: black;
+    font-size: 24pt;
 }

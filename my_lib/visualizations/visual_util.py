@@ -75,7 +75,7 @@ def get_traces_for_gen_hydro_and_others(df_trend):
         trace_i = go.Scatter(
             x=df_trend.index,
             y=df_trend[column],
-            mode='line',
+            mode='lines',
             name=names[column],
             line=dict(
                 width=width[column],

@@ -2,18 +2,20 @@ let map;
 let otro_pais_color = "rgba(51, 77, 77,1)";
 
 
-function draw_ecuador_only(to_plot){
+function draw_ecuador_only(to_plot, callback){
 	
 	map = AmCharts.makeChart( to_plot, {
 					"type": "map",
-					"pathToImages": "http://www.amcharts.com/lib/3/images/",
+					//"pathToImages": "http://www.amcharts.com/lib/3/images/",
+					"creditsPosition": "bottom-right",
 					"addClassNames": true,
 					"fontSize": 15,
 					"color": "#FFFFFF",
 					"projection": "mercator",
 					"backgroundAlpha": 1,
-					"backgroundColor": "rgba(37,97,142,1)",
-					
+					//"backgroundColor": "rgba(37,97,142,1)",
+					"backgroundColor": "black",
+
 					"dataProvider": {
 						"map": "ecuadorLow",
 						"getAreasFromMap": true,
@@ -34,17 +36,6 @@ function draw_ecuador_only(to_plot){
                                 "labelColor": "rgba(180,180,180,1)"
                             }*/
                         ],
-						/*"images": [
-							{
-								"top": 40,
-								"left": 60,
-								"width": 80,
-								"height": 40,
-								"pixelMapperLogo": true,
-								"imageURL": "http://pixelmap.amcharts.com/static/img/logo.svg",
-								"url": "http://www.amcharts.com"
-							}
-						]*/
 						"zoomLatitude": -1.75,
 						"zoomLongitude": -83.5,
 						"zoomLevel": 2.2,
@@ -66,7 +57,7 @@ function draw_ecuador_only(to_plot){
 
                         "lines": [{
                             "latitudes": [ 1.5 ,1.5, -0.7, -1.3, -1.3, 1.5],
-                            "longitudes": [ -86.5 ,-83, -83, -83.3, -86.5, -86.5]
+                            "longitudes": [ -85.2 ,-82, -82, -82.5, -85.2, -85.2]
                         }],
 					},
 
@@ -108,39 +99,42 @@ function draw_ecuador_only(to_plot){
 						"selectedBrightness": 20
 					},
 					"listeners": [ {
-		    					"event": "clickMapObject",
+		    				"event": "clickMapObject",
 						    "method": function( event ) {
-						      // deselect the area by assigning all of the dataProvider as selected object
-						      map.selectedObject = map.dataProvider;
-							let selected_region = event.mapObject.title;
-								console.log(selected_region);
-						      
-								// toggle showAsSelected
-						      	event.mapObject.showAsSelected = !event.mapObject.showAsSelected;
+						     // deselect the area by assigning all of the dataProvider as selected object
+						     map.selectedObject = map.dataProvider;
+							 let selected_region = event.mapObject.title;
+							 // console.log(event.mapObject);
 
-						      // bring it to an appropriate color
-						      map.returnInitialColor( event.mapObject );
+						if(is_in(selected_region, ecuador_regions)){
+                            // toggle showAsSelected
+                            event.mapObject.showAsSelected = !event.mapObject.showAsSelected;
 
-						      // let's build a list of currently selected states
-						     
-						      for ( let i in map.dataProvider.areas ) {
-								        let area = map.dataProvider.areas[ i ];
-								        if ( area.title === selected_region && is_in(area.title, ecuador_regions) ) {
-											
-											area.colorReal =  "rgba(255, 150, 0, 1)";
-								        }
-										else{
-											area.colorReal =  "#0e283b";
-										}
-						      		}
-							  // set same zoom levels to retain map position/zoom in case a selection was made after a zoom
-        						//map.dataProvider.zoomLevel = map.zoomLevel();
-					        //map.dataProvider.zoomLatitude = map.dataProvider.zoomLatitude = map.zoomLatitude();
-					       // map.dataProvider.zoomLongitude = map.dataProvider.zoomLongitude = map.zoomLongitude();
-					        map.validateNow(); //redraw the map with the new selection/colors.
-							mover_regiones() ; //mover regiones Peru y Colombia 
-						    		}
-						  } 
+                            // bring it to an appropriate color
+                            map.returnInitialColor( event.mapObject );
+
+                            // let's build a list of currently selected states
+                            for ( let i in map.dataProvider.areas ) {
+                                    let area = map.dataProvider.areas[ i ];
+                                    if ( area.title === selected_region && is_in(area.title, ecuador_regions) ) {
+
+                                        area.colorReal =  "rgba(255, 150, 0, 1)";
+                                    }
+                                    else{
+                                        area.colorReal =  "#0e283b";
+                                    }
+                                }
+                            // set same zoom levels to retain map position/zoom in case a selection was made after a zoom
+                            //map.dataProvider.zoomLevel = map.zoomLevel();
+                            //map.dataProvider.zoomLatitude = map.dataProvider.zoomLatitude = map.zoomLatitude();
+                            // map.dataProvider.zoomLongitude = map.dataProvider.zoomLongitude = map.zoomLongitude();
+                            // map.validateNow(); //redraw the map with the new selection/colors.
+                            map.write(to_plot);
+                            mover_regiones() ; //mover regiones Peru y Colombia
+                            seleccionar_mapa(selected_region);
+
+					        }
+					    }}
 					],
 					"zoomControl": {
 						"zoomControlEnabled": false,
@@ -159,8 +153,15 @@ function draw_ecuador_only(to_plot){
 				});
 	
 	// mover las regiones de Colombia y Peru
-	 mover_regiones();
-	
+	map.write(to_plot);
+	mover_regiones();
+	if(callback === undefined ){
+	    return map;
+	}else{
+	    error = null;
+	    callback(error, map);
+	}
+
 }
 
 let peru_regions = [
@@ -185,6 +186,11 @@ let colombia_regions = [
 
 	]; 
 	
+let cnel_regions = [
+    "El Oro", "Guayas", "Santa Elena", "Manabí", "Esmeraldas",
+	"Santo Domingo de los Tsáchilas",  "Los Ríos", "Bolívar", "Sucumbíos" ]
+
+
 
 let ecuador_regions= [
 	"Loja", "El Oro", "Guayas", "Santa Elena", "Manabí", "Esmeraldas", "Carchi", "Imbabura", "Pichincha", 
@@ -227,7 +233,7 @@ function mover_colombia(){
 
 function mover_galapagos(){
     var scale_c = 1;
-    var x_c = 280;
+    var x_c = 325;
     var y_c = -25;
     var regions = d3.selectAll(".amcharts-map-area");
     regions.filter("path.amcharts-map-area-EC-W").attr("transform", "translate(" + x_c  + "," + y_c + ") scale(" + scale_c +")");
@@ -246,7 +252,7 @@ function mover_regiones(){
         for (let i in map.dataProvider.areas ) {
                 let area = map.dataProvider.areas[i];
                 if (  is_in(area.title, ecuador_regions) === false) {
-                    area.rollOverColorReal=  otro_pais_color;
+                    area.rollOverColorReal=otro_pais_color;
                 }
          }
 
@@ -269,7 +275,7 @@ let region_oriental =[
 
 let region_insular = ["Galápagos"];
 
-function pintar_regiones(region_list, to_color){
+function pintar_regiones(map, region_list, to_color){
 
     for (let i in map.dataProvider.areas ) {
 	        let area = map.dataProvider.areas[i];
@@ -277,21 +283,40 @@ function pintar_regiones(region_list, to_color){
 				area.colorReal=to_color;
 	        }
 	 }
-	 map.validateNow();
+	 //map.write();
+	 map.validateData();
+	 mover_regiones();
+	 return map;
 }
 
 
-function pintar_regiones_del_ecuador(){
+function pintar_regiones_del_ecuador(map){
     // pintar region costa:
-    pintar_regiones(region_costa, "rgba(100, 10, 10, 0.9)");
+    map = pintar_regiones(map, region_costa, "rgba(100, 10, 10, 0.9)");
     // pintar region sierra:
-    pintar_regiones(region_sierra, "#0e283b");
+    map = pintar_regiones(map, region_sierra, "#0e283b");
     // pintar region oriental
-    pintar_regiones(region_oriental, "rgba(0, 74, 86, 0.9)");
+    map = pintar_regiones(map, region_oriental, "rgba(0, 74, 86, 0.9)");
     // pintar region insular
-    pintar_regiones(region_insular, "rgba(200, 200, 100, 0.9)");
+    map = pintar_regiones(map, region_insular, "rgba(200, 200, 100, 0.9)");
 
+    return map;
 }
+
+function pintar_por_empresas(map){
+    // pintar cnel
+    map = pintar_regiones(map, cnel_regions, "rgb(100, 70, 125)");
+    let emp = [];
+    for(let id in ecuador_regions){
+        if(!is_in(ecuador_regions[id], cnel_regions)){
+            emp.push(ecuador_regions[id])
+        }
+    }
+    map = pintar_regiones(map, emp, "rgb(78, 147, 197)");
+    map = pintar_regiones(map, region_insular, "rgba(200, 200, 100, 0.9)");
+    return map;
+}
+
 
 var scale = 1.115;
 var x = 492;

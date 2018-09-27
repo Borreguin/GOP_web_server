@@ -19,7 +19,7 @@ def temporal_path():
 
 def retrieve_file(file_name, dt_deltatime):
     file_path = temporal_path() + file_name
-    file_path = file_path.replace(":", "_")
+    file_path = valid_path(file_path)
     if os.path.exists(file_path) and isinstance(dt_deltatime, dt.timedelta):
 
         modified_time = dt.datetime.fromtimestamp(os.path.getmtime(file_path))
@@ -29,19 +29,31 @@ def retrieve_file(file_name, dt_deltatime):
             # Getting back the objects:
             with open(file_path, 'rb') as f:
                 resp = pickle.load(f)
+
+            # Clear the Temp path if is full:
+            empty_temp_files(limit_number_of_files=50)
             return resp
 
         else:
-            return  None
+            return None
 
     else:
         return None
 
 
+def empty_temp_files(limit_number_of_files):
+    file_list = os.listdir(temporal_path())
+    if limit_number_of_files < len(file_list):
+        for f in file_list:
+            os.remove(os.path.join(temporal_path(), f))
+
+
+
+
 def save_variables(file_name, list_objects):
 
     file_path = temporal_path() + file_name
-    file_path = file_path.replace(":", "_")
+    file_path = valid_path(file_path)
     try:
         # Saving the objects:
         with open(file_path, 'wb') as f:
@@ -50,6 +62,12 @@ def save_variables(file_name, list_objects):
     except Exception as e:
         print(e)
         return False
+
+
+def valid_path(file_path):
+    file_path = file_path[:3] + file_path[3:].replace(":", "_")
+    file_path = file_path[:3] + file_path[3:].replace("/", "_")
+    return file_path
 
 
 def test():
@@ -67,6 +85,7 @@ def test():
     save_variables("temporal_manager_test.pkl", [aux_1, aux_2, aux_3])
 
     return aux_1, aux_2, aux_3
+
 
 if __name__ == "__main__":
     perform_test = True

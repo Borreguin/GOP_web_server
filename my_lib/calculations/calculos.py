@@ -1,17 +1,17 @@
-""" coding: utf-8
+﻿""" coding: utf-8
 Created by rsanchez on 07/05/2018
 Este proyecto ha sido desarrollado en la Gerencia de Operaciones de CENACE
 Mateo633
 """
 import datetime
 import os
-from my_lib.GOP_connection import GOPserver as op
+from my_lib.GOP_connection import GOPserver as Gop
 from my_lib.PI_connection import pi_connect as osi
 from my_lib.temporal_files_manager import temporal_manager as tmp
 import datetime as dt
 import pandas as pd
 
-gop_svr = op.GOPserver()
+gop_svr = Gop.GOPserver()
 pi_svr = osi.PIserver()
 script_path = os.path.dirname(os.path.abspath(__file__))
 # ______________________________________________________________________________________________________________#
@@ -29,11 +29,12 @@ technology = ['Embalse', 'Pasada', 'Turbo Vapor', 'Turbo Gas', 'MCI', 'Biomasa',
               'Eólica', 'Fotovoltaica', 'Bio Gas']
 
 termoelectrica_list = ['Turbo Vapor', 'MCI', 'Turbo Gas']  # Machala Gas es de tipo 'Turbo Gas'
-gas_natural_list = ['Turbo Gas']                           # El tipo de combustible permite realizar el filtro correcto
+gas_natural_list = ['Turbo Gas']  # El tipo de combustible permite realizar el filtro correcto
 no_convencional_list = ['Biomasa', 'Eólica', 'Fotovoltaica', 'Bio Gas']
 hidraulica_list = ['Embalse', 'Pasada']
 
 system_path_file = "F:\DATO\Estad\System SIVO\SYSTEM yyyy.xlsx"
+empresas_file_config = "\static\\app_data\maps\empr_electricas_por_provincia.xlsx"
 
 
 # ______________________________________________________________________________________________________________#
@@ -146,19 +147,20 @@ def generation_matrix(time_range):
     # Se recoge el total de generación fotovoltaica en esta central
     caso_fotovoltaica = True
     if caso_fotovoltaica:
-        mask = df_gen["Tecnología"]=="Fotovoltaica"
+        mask = df_gen["Tecnología"] == "Fotovoltaica"
         if len(df_gen[mask]) > 0:
             df_gen[mask].drop(inplace=True)
         tag_total_fotovoltaica = obtener_tag_name_por_descripcion("Generación Fotovoltaica")
         df_values = tag_total_fotovoltaica.interpolated(time_range, span_30)
         tag_name = tag_total_fotovoltaica.tag_name
-        for idx in set(df_values.index):
+        for idx in df_values.index:
             df_aux = pd.DataFrame(["Fotovoltaica", "Total", "Fotovoltaica", tag_name, df_values.at[idx, tag_name], idx],
-                          index=["Central", "Unidad", "Tecnología", "TAG", "Potencia", "Fecha"])
+                                  index=["Central", "Unidad", "Tecnología", "TAG", "Potencia", "Fecha"])
             df_gen = df_gen.append(df_aux.T, ignore_index=True)
 
     df_gen["Fecha"] = [f._repr_base for f in df_gen["Fecha"]]
     df_gen["unique"] = df_gen["Central"] + "_" + df_gen["Unidad"] + "_" + df_gen["Fecha"]
+    df_gen.sort_values(by=["Central", "Unidad", "Fecha", "TAG"], inplace=True)
     df_gen.drop_duplicates(["unique"], keep='last', inplace=True)
     return df_gen
 
@@ -349,9 +351,7 @@ def other_generation_detail_now():
     total = generation_now('Otra generación')['value']
     df_r.at["Gas natural", "value"] = generation_now('Turbo Gas')['value']
     df_r.at["No convencional", "value"] = generation_now('No convencional')['value']
-    df_r.at["Calidad de servicio", "value"] = total - \
-                                              df_r["value"].loc["Gas natural"] - \
-                                              df_r["value"].loc["No convencional"]
+    df_r.at["Calidad de servicio", "value"] = total - df_r["value"].loc["Gas natural"] - df_r["value"].loc["No convencional"]
     df_r["percentage"] = df_r["value"] / total
     df_r["numeric"] = df_r["value"]
     df_r["value"] = [str(x) + " MWh" for x in df_r["value"]]
@@ -367,22 +367,23 @@ def generation_trend_today_by_tech():
     df_matrix = generation_matrix(time_range)
     # init
     mask = (df_matrix["Tecnología"] == technology[0])
-    df_trend = df_matrix[mask].groupby("Fecha").sum()
-    df_trend.columns = [technology[0]]
+    df_trend = df_matrix[mask].groupby("Fecha")["Potencia"].sum()
+    df_result = pd.DataFrame(index=df_trend.index, columns=technology)
+    df_result[technology[0]] = df_trend
 
     # others
     for tech in technology[1:]:
         mask = (df_matrix["Tecnología"] == tech)
-        df_trend[tech] = df_matrix[mask].groupby("Fecha").sum()
+        df_result[tech] = df_matrix[mask].groupby("Fecha")["Potencia"].sum()
 
-    return df_trend
+    return df_result
 
 
 def trend_hydro_and_others_today():
     df_by_tech = generation_trend_today_by_tech()
     df_by_tech.index = pd.to_datetime(df_by_tech.index)
-    dt = datetime.datetime.today()
-    dt_today = dt.strftime("%Y-%m-%d")
+    dt_n = datetime.datetime.today()
+    dt_today = dt_n.strftime("%Y-%m-%d")
     dt_today = datetime.datetime.strptime(dt_today, "%Y-%m-%d").date()
     index_range = pd.date_range(dt_today, dt_today + datetime.timedelta(hours=24), freq="30T")
 
@@ -437,7 +438,6 @@ def demanda_nacional_desde_tag(ini_date=None, fin_date=None, delta=None):
     tag_name = df_config.at["Demanda Nacional del Ecuador", 'tag']
     # tag_name = obtener_tag_name_por_descripcion("Demanda Nacional")
 
-
     # valores por defecto
     time_range = pi_svr.time_range_for_today_all_day
     span = pi_svr.span("30m")
@@ -461,7 +461,6 @@ def demanda_nacional_desde_sivo(ini_date=None, fin_date=None):
     Esta función calcula la demanda nacional usando la matriz porosa de SIVO
     :param ini_date:  string en formato: yyyy-mm-dd hh:mm:ss
     :param fin_date:  string en formato: yyyy-mm-dd hh:mm:ss
-    :param delta:     span en formato string: 10m
     :return:
     """
 
@@ -471,12 +470,13 @@ def demanda_nacional_desde_sivo(ini_date=None, fin_date=None):
         time_range = pi_svr.time_range(ini_date, fin_date)
 
     df_gen = generation_matrix(time_range)
-    df_gen = df_gen[df_gen["Potencia"]> 0]
+    df_gen = df_gen[df_gen["Potencia"] > 0]
     df_gen = df_gen[["Potencia", "Fecha"]].groupby("Fecha").sum()
     df_importacion = intercambio_programado_importacion(time_range)
     df_exportacion = intercambio_programado_exportacion(time_range)
-    df_result = pd.DataFrame(index=df_gen.index, columns=["Demanda nacional"])
-
+    date_range = pd.date_range(time_range.get_StartTime().ToString("yyyy-MM-dd HH:mm:s"),
+                               time_range.get_EndTime().ToString("yyyy-MM-dd HH:mm:s"), freq="30T")
+    df_result = pd.DataFrame(index=[str(x) for x in date_range], columns=["Demanda nacional"])
     df_result["Demanda nacional"] = df_gen["Potencia"] + df_importacion["Importación"] - df_exportacion["Exportación"]
     return df_result
 
@@ -493,13 +493,13 @@ def demanda_empresas(time=None, level=-1):
     if time is None:
         time = dt.datetime.now()
 
-    config_path_file = script_path.replace('\my_lib\calculations',
-                                           '\static\\app_data\maps\empr_electricas_por_provincia.xlsx')
+    config_path_file = script_path.replace('\my_lib\calculations', empresas_file_config)
     df_config = pd.read_excel(config_path_file, sheet_name='demanda_empresas')
 
     year = dt.datetime.now().year
     sql_str = 'SELECT t.Nom_UNegocio, t.Fecha, PotMax MW FROM SIVO.dbo.TMP_System_Dem t ' + \
-              'where YEAR(t.Fecha) = {0}'
+              "where YEAR(t.Fecha) = {0}"
+
     df_max = pd.read_sql(sql_str.format(year), gop_svr.conn)
 
     if df_max.empty:
@@ -516,8 +516,8 @@ def demanda_empresas(time=None, level=-1):
         # df_result.at[empresa, "timestamp"] = pt.snapshot().Timestamp.ToString("yyyy-MM-dd HH:mm:s")
         df_result.at[empresa, "timestamp"] = str(time)
         # df_result.at[empresa, "current_value"] = int(pt.snapshot().Value)
-        df_result.at[empresa, "current_value"] = int(pt.interpolated_value(time))
-        df_result.at[empresa, "max_value"] = int(df_max[empresa].max())
+        df_result.at[empresa, "current_value"] = round(pt.interpolated_value(time), 1)
+        df_result.at[empresa, "max_value"] = round(df_max[empresa].max(), 1)
 
     df_result["dif"] = df_result["max_value"] - df_result["current_value"]
     df_result.sort_values(by=["current_value"], ascending=False, inplace=True)
@@ -547,6 +547,73 @@ def maxima_demanda_nacional(year=None):
     sql_str = sql_str.replace("yyyy", year)
     df = pd.read_sql(sql_str, gop_svr.conn)
     return df.T
+
+
+def tendencia_demanda_nacional_por_regiones(time_range=None, span=None):
+    # calculo disponible en 2 minutos
+    dt_delta = dt.timedelta(minutes=2)
+    tmp_name = "tendencia_demanda_nacional_por_regiones" + str(time_range) + str(span) + ".pkl"
+    tmp_file = tmp.retrieve_file(tmp_name, dt_delta)
+    if tmp_file is not None:
+        return tmp_file
+
+    if time_range is None:
+        time_range = pi_svr.time_range_for_today_all_day
+    if span is None:
+        span = span_30
+
+    config_path_file = script_path.replace('\my_lib\calculations', empresas_file_config)
+    df_config = pd.read_excel(config_path_file, sheet_name='demanda_empresas')
+    df_config.fillna(0, inplace=True)
+    regiones = ['Costa', 'Sierra', 'Oriente']
+    df_result = pd.DataFrame(columns=regiones)
+    for region in regiones:
+        mask = (df_config["% " + region] > 0)
+        tag_list = list(df_config["TAG"][mask])
+        df_values = pi_svr.interpolated_of_tag_list(tag_list, time_range, span, numeric=True)
+        factor = df_config["% " + region][mask]
+        df_values = factor.values * df_values
+        df_result[region] = df_values.sum(axis=1, skipna=False)
+        df_result[region] = df_result[region].round(decimals=1)
+    tmp.save_variables(tmp_name, df_result)
+    return df_result
+
+
+def demanda_regiones(time=None):
+    # calculo disponible en 3 minutos
+    # dt_delta = dt.timedelta(minutes=3)
+    # tmp_file = tmp.retrieve_file("calculos_demanda_empresas_now.pkl", dt_delta)
+    # if tmp_file is not None:
+    #    return tmp_file
+
+    if time is None:
+        time = dt.datetime.now()
+
+    config_path_file = script_path.replace('\my_lib\calculations', empresas_file_config)
+    df_config = pd.read_excel(config_path_file, sheet_name='demanda_empresas')
+    df_config.index = df_config["EMPRESA"]
+    df_config.fillna(0, inplace=True)
+    df_config.sort_index(inplace=True)
+
+    df_empresas = demanda_empresas(time)
+    df_empresas.sort_index(inplace=True)
+    regions = ["Costa", "Sierra", "Oriente"]
+    df_result = pd.DataFrame(index=regions, columns=df_empresas.columns)
+
+    for region in regions:
+        mask = (df_config["% " + region] > 0)
+        df_aux = df_empresas[mask].copy()
+        factors = df_config["% " + region][mask].values
+        df_aux["current_value"] = df_aux["current_value"] * factors
+        df_result["current_value"].loc[region] = round(df_aux["current_value"].sum(), 1)
+        df_result["max_value"].loc[region] = round(df_aux["max_value"].sum(), 1)
+
+    df_result["dif"] = df_result["max_value"] - df_result["current_value"]
+    df_result["percentage"] = df_result["current_value"] / df_result["current_value"].sum() * 100
+    df_result["percentage"] = [str(round(x, 1)) + "%" for x in df_result["percentage"].values]
+    df_result[df_result["dif"] < 0]["dif"] = 0
+    df_result["timestamp"] = str(time)
+    return df_result
 
 
 # Example:
@@ -605,6 +672,7 @@ def filtrar_generacion_por(detail="Total", time_range=None):
 def detalle_generacion_potencia(detail='Total', timestamp=None):
     """
 
+    :param timestamp:
     :param detail: detalle de tecnologías: valores válidos: Embalse, Pasada, Turbo Vapor, Turbo Gas, MCI, Biomasa,
               Eólica, Fotovoltaica, Bio Gas, Termoelectrica, No convencional, Total
     :return: DataFrame con el detalle de generación al corte 30 m
@@ -684,7 +752,8 @@ def obtener_tag_name_por_descripcion(descripcion):
     sql_str = "select * from CFG_Tag_PiSicom WHERE UPPER(TAGPI_DESCRIPCION) = '{0}'".format(descripcion.upper())
     df_tag = pd.read_sql(sql_str, gop_svr.conn)
     if df_tag.empty:
-        print("[{0}] [obtener_tag_name_por_descripcion] no encontró la siguiente tag: {1}".format(script_path, descripcion))
+        print("[{0}] [obtener_tag_name_por_descripcion] no encontró la siguiente tag: {1}".format(script_path,
+                                                                                                  descripcion))
         return None
     tag_name = df_tag["TAGPI_CODIGO"].iloc[0]
     try:
@@ -695,23 +764,29 @@ def obtener_tag_name_por_descripcion(descripcion):
 
 
 def informacion_sankey_generacion_demanda(timestamp=None):
-    import math as mt
     if timestamp is None:
         timestamp = time_last_30_m()
 
-    details = ['Hidroeléctrica', 'Termoeléctrica', 'No convencional']
+    details = ['Hidroeléctrica', 'Termoeléctrica']
     df_result = pd.DataFrame(columns=["source", "target", "value", "timestamp"])
     idx = 0
     for detail in details:
 
         df_gen = detalle_generacion_potencia(detail, timestamp)
         df_gen = df_gen.groupby("Central").sum()
-        # tag_list = list(df_gen["TAG"])
-        # df_aux = pi_svr.snapshot_of_tag_list(tag_list, timestamp).T
+
         if df_gen["Potencia"].sum() > 0:
             df_result.at[idx, "source"] = detail
-            df_result.at[idx, "value"] = mt.ceil(df_gen["Potencia"].sum())
+            df_result.at[idx, "value"] = round(df_gen["Potencia"].sum(), 1)
             idx += 1
+
+    gen_total = detalle_generacion_potencia("Total", timestamp)
+    gen_total = gen_total[gen_total["Potencia"] > 0]["Potencia"].sum()
+    no_convencional_mw = gen_total - df_result["value"].sum()
+    if no_convencional_mw > 0:
+        df_result.at[idx, "source"] = "No convecional"
+        df_result.at[idx, "value"] = round(no_convencional_mw, 1)
+        idx += 1
 
     # considerar importacion:
     time_range = pi_svr.time_range(str(timestamp), str(timestamp))
@@ -719,9 +794,9 @@ def informacion_sankey_generacion_demanda(timestamp=None):
     imp_value = imp_value["Importación"].iloc[-1]
 
     if imp_value >= 0.5:
-        produccion_mw = mt.ceil(df_result["value"].sum() + imp_value)
+        produccion_mw = round(df_result["value"].sum() + imp_value, 1)
     else:
-        produccion_mw = mt.ceil(df_result["value"].sum())
+        produccion_mw = round(df_result["value"].sum(), 1)
 
     df_result["target"] = "Producción"
 
@@ -729,8 +804,8 @@ def informacion_sankey_generacion_demanda(timestamp=None):
     exp_value = intercambio_programado_exportacion(time_range)
     exp_value = exp_value["Exportación"].iloc[-1]
 
-    if exp_value >=0.5:
-        demanda_nacional_mw = mt.ceil(produccion_mw - exp_value)
+    if exp_value >= 0.5:
+        demanda_nacional_mw = round(produccion_mw - exp_value, 1)
     else:
         demanda_nacional_mw = produccion_mw
 
@@ -742,19 +817,382 @@ def informacion_sankey_generacion_demanda(timestamp=None):
     if imp_value >= 0.5:
         df_result.at[idx, "source"] = "Importación"
         df_result.at[idx, "target"] = "Producción"
-        df_result.at[idx, "value"] = mt.ceil(imp_value)
+        df_result.at[idx, "value"] = round(imp_value, 1)
 
     idx += 1
     if exp_value >= 0.5:
         df_result.at[idx, "source"] = "Producción"
         df_result.at[idx, "target"] = "Exportación"
-        df_result.at[idx, "value"] = mt.ceil(exp_value)
+        df_result.at[idx, "value"] = round(exp_value, 1)
 
     df_result["timestamp"] = str(timestamp)
 
     return df_result.T
 
 
+def informacion_sankey_generacion_demanda_regional(timestamp=None):
+    if timestamp is None:
+        timestamp = time_last_30_m()
+
+    details = ['Hidroeléctrica', 'Termoeléctrica']
+    df_result = pd.DataFrame(columns=["source", "target", "value", "timestamp"])
+    idx = 0
+    for detail in details:
+
+        df_gen = detalle_generacion_potencia(detail, timestamp)
+        df_gen = df_gen.groupby("Central").sum()
+
+        if df_gen["Potencia"].sum() > 0:
+            df_result.at[idx, "source"] = detail
+            df_result.at[idx, "value"] = round(df_gen["Potencia"].sum(), 1)
+            idx += 1
+
+    gen_total = detalle_generacion_potencia("Total", timestamp)
+    gen_total = gen_total[gen_total["Potencia"] > 0]["Potencia"].sum()
+    no_convencional_mw = gen_total - df_result["value"].sum()
+    if no_convencional_mw > 0:
+        df_result.at[idx, "source"] = "No convecional"
+        df_result.at[idx, "value"] = round(no_convencional_mw, 1)
+        idx += 1
+
+    time_range = pi_svr.time_range(str(timestamp), str(timestamp))
+    imp_value = intercambio_programado_importacion(time_range)
+    imp_value = imp_value["Importación"].iloc[-1]
+
+    if imp_value >= 0.5:
+        produccion_mw = round(df_result["value"].sum() + imp_value, 1)
+    else:
+        produccion_mw = round(df_result["value"].sum(), 1)
+
+    df_result["target"] = "Producción"
+
+    # considerar regiones:
+    df_dem_regiones = tendencia_demanda_nacional_por_regiones(time_range)
+    dem_mw_regiones = 0
+    for region in df_dem_regiones:
+        df_result.at[idx, "source"] = "Producción"
+        df_result.at[idx, "target"] = region
+        df_result.at[idx, "value"] = round(df_dem_regiones[region].iloc[0], 1)
+        dem_mw_regiones += df_result.at[idx, "value"]
+        idx += 1
+
+        # considerar exportación:
+    exp_value = intercambio_programado_exportacion(time_range)
+    exp_value = exp_value["Exportación"].iloc[-1]
+
+    idx += 1
+    if imp_value >= 0.5:
+        df_result.at[idx, "source"] = "Importación"
+        df_result.at[idx, "target"] = "Producción"
+        df_result.at[idx, "value"] = round(imp_value, 1)
+
+    idx += 1
+    if exp_value >= 0.5:
+        df_result.at[idx, "source"] = "Producción"
+        df_result.at[idx, "target"] = "Exportación"
+        df_result.at[idx, "value"] = round(exp_value, 1)
+
+    idx += 1
+    df_result.at[idx, "source"] = "Producción"
+    df_result.at[idx, "target"] = "Pérdidas"
+    df_result.at[idx, "value"] = produccion_mw - dem_mw_regiones
+
+    df_result["timestamp"] = str(timestamp)
+
+    return df_result.T
+
+
+def informacion_sankey_generacion_demanda_nivel_empresarial(timestamp=None):
+    if timestamp is None:
+        timestamp = time_last_30_m()
+
+    details = ['Hidroeléctrica', 'Termoeléctrica']
+    df_result = pd.DataFrame(columns=["source", "target", "value", "timestamp"])
+
+    idx = 0
+    for detail in details:
+
+        df_gen = detalle_generacion_potencia(detail, timestamp)
+        df_gen = df_gen.groupby("Central").sum()
+
+        if df_gen["Potencia"].sum() > 0:
+            df_result.at[idx, "source"] = detail
+            df_result.at[idx, "value"] = round(df_gen["Potencia"].sum(), 1)
+            idx += 1
+
+    gen_total = detalle_generacion_potencia("Total", timestamp)
+    gen_total = gen_total[gen_total["Potencia"] > 0]["Potencia"].sum()
+    no_convencional_mw = gen_total - df_result["value"].sum()
+    if no_convencional_mw > 0:
+        df_result.at[idx, "source"] = "No convecional"
+        df_result.at[idx, "value"] = round(no_convencional_mw, 1)
+        idx += 1
+
+    time_range = pi_svr.time_range(str(timestamp), str(timestamp))
+    imp_value = intercambio_programado_importacion(time_range)
+    imp_value = imp_value["Importación"].iloc[-1]
+
+    if imp_value >= 0.5:
+        produccion_mw = round(df_result["value"].sum() + imp_value, 1)
+    else:
+        produccion_mw = round(df_result["value"].sum(), 1)
+
+    df_result["target"] = "Producción"
+
+    # considerar nivel empresarial:
+    df_dem_empresas = tendencia_demanda_nacional_por_nivel_empresarial(time_range)
+    dem_mw_empresas = 0
+    for nivel in df_dem_empresas:
+        df_result.at[idx, "source"] = "Producción"
+        df_result.at[idx, "target"] = nivel
+        df_result.at[idx, "value"] = round(df_dem_empresas[nivel].iloc[0], 1)
+        dem_mw_empresas += df_result.at[idx, "value"]
+        idx += 1
+
+    # considerar exportación:
+    exp_value = intercambio_programado_exportacion(time_range)
+    exp_value = exp_value["Exportación"].iloc[-1]
+
+    idx += 1
+    if imp_value >= 0.5:
+        df_result.at[idx, "source"] = "Importación"
+        df_result.at[idx, "target"] = "Producción"
+        df_result.at[idx, "value"] = round(imp_value, 1)
+
+    idx += 1
+    if exp_value >= 0.5:
+        df_result.at[idx, "source"] = "Producción"
+        df_result.at[idx, "target"] = "Exportación"
+        df_result.at[idx, "value"] = round(exp_value, 1)
+
+    idx += 1
+    df_result.at[idx, "source"] = "Producción"
+    df_result.at[idx, "target"] = "Pérdidas"
+    df_result.at[idx, "value"] = produccion_mw - dem_mw_empresas
+
+    df_result["timestamp"] = str(timestamp)
+
+    return df_result.T
+
+
+def demanda_por_nivel_empresarial(timestamp=None):
+    if timestamp is None:
+        timestamp = time_last_30_m()
+
+    config_path_file = script_path.replace('\my_lib\calculations', empresas_file_config)
+    df_config = pd.read_excel(config_path_file, sheet_name='demanda_empresas')
+    nivel_empresa = list(set(df_config["N_Empresarial"]))
+    df_empresas = demanda_empresas(timestamp)
+    df_result = pd.DataFrame(columns=df_empresas.columns, index=nivel_empresa)
+    for nivel in nivel_empresa:
+        emp_list = list(df_config[df_config["N_Empresarial"] == nivel]["EMPRESA"])
+        df_aux = df_empresas.loc[emp_list]
+        df_result.loc[nivel] = df_aux.sum()
+
+    df_result["timestamp"] = str(timestamp)
+    df_result["percentage"] = df_result["current_value"] / df_result["current_value"].sum()
+    df_result["percentage"] = [str(round(x * 100, 2)) + " %" for x in df_result["percentage"]]
+
+    df_result.sort_values(by=["current_value"], ascending=False, inplace=True)
+    return df_result
+
+
+def tendencia_demanda_nacional_por_nivel_empresarial(time_range=None, span=None):
+    # calculo disponible en 2 minutos
+    dt_delta = dt.timedelta(minutes=2)
+    tmp_name = "tendencia_demanda_nacional_por_nivel_empresarial" + str(time_range) + str(span) + ".pkl"
+    tmp_file = tmp.retrieve_file(tmp_name, dt_delta)
+    if tmp_file is not None:
+        return tmp_file
+
+    if time_range is None:
+        time_range = pi_svr.time_range_for_today_all_day
+    if span is None:
+        span = span_30
+
+    config_path_file = script_path.replace('\my_lib\calculations', empresas_file_config)
+    df_config = pd.read_excel(config_path_file, sheet_name='demanda_empresas')
+    df_config.fillna(0, inplace=True)
+    nivel_empresa = list(set(df_config["N_Empresarial"]))
+
+    df_result = pd.DataFrame(columns=nivel_empresa)
+    for nivel in nivel_empresa:
+        mask = (df_config["N_Empresarial"] == nivel)
+        tag_list = list(df_config["TAG"][mask])
+        df_values = pi_svr.interpolated_of_tag_list(tag_list, time_range, span, numeric=True)
+        df_result[nivel] = df_values.sum(axis=1, skipna=False)
+        df_result[nivel] = df_result[nivel].round(decimals=1)
+    tmp.save_variables(tmp_name, df_result)
+    return df_result
+
+
+def tendencia_demanda_por_provincia(provincia, time_range=None, span=None):
+    if "-" in provincia:
+        provincia = provincia.replace("-", " ")
+
+    if "Santo Domingo de los Tsáchilas" == provincia:
+        provincia = "Sto. Domingo de los Tsachilas"
+
+    # calculo disponible en 2 minutos
+    dt_delta = dt.timedelta(minutes=2)
+    tmp_name = "tendencia_demanda_por_provincia" + str(provincia) + str(time_range) + str(span) + ".pkl"
+    tmp_file = tmp.retrieve_file(tmp_name, dt_delta)
+    if tmp_file is not None:
+        return tmp_file
+
+    if time_range is None:
+        time_range = pi_svr.time_range_for_today_all_day
+    if span is None:
+        span = span_30
+
+    df_cargas = detalle_puntos_entrega(provincia, time_range.StartTime.ToString("yyyy-MM-dd"))
+    str_item = "Subestacion"
+    item_set = set(df_cargas[str_item])
+    if len(item_set) == 1:
+        str_item = "Posicion"
+        item_set = set(df_cargas[str_item])
+
+    df_result = pd.DataFrame(columns=item_set)
+    for item in item_set:
+        mask = (df_cargas[str_item] == item)
+        tag_list = list(df_cargas["TAG"][mask])
+        df_values = pi_svr.interpolated_of_tag_list(tag_list, time_range, span, numeric=True)
+        df_values[df_values < 0] = 0
+        df_result[item] = df_values.sum(axis=1, skipna=False)
+        df_result[item] = df_result[item].round(decimals=1)
+
+    df_aux = df_result.dropna()
+    df_result = df_result.T.sort_values(by=[df_aux.index[-1]], ascending=False)
+    df_result = df_result.T
+    tmp.save_variables(tmp_name, df_result)
+    return df_result
+
+
+def demanda_por_provincia(provincia, timestamp=None):
+    if "-" in provincia:
+        provincia = provincia.replace("-", " ")
+
+    if "Santo Domingo de los Tsáchilas" == provincia:
+        provincia = "Sto. Domingo de los Tsachilas"
+
+    if timestamp is None:
+        timestamp = time_last_30_m()
+        time_range = pi_svr.time_range(str(timestamp), str(timestamp))
+    else:
+        time_range = None
+
+    df_demanda = tendencia_demanda_por_provincia(provincia, time_range)
+    df_cargas = detalle_puntos_entrega(provincia, timestamp)
+    df_cargas = df_cargas[df_cargas['Provincia'] == provincia]
+    df_max = pd.DataFrame(index=df_demanda.columns, columns=["max_value"])
+    df_max["max_value"] = 0
+
+    str_item = "Subestacion"
+    item_set = set(df_cargas[str_item])
+    if len(item_set) == 1:
+        str_item = "Posicion"
+        item_set = set(df_cargas[str_item])
+
+    for item in item_set:
+        mask = df_cargas[str_item] == item
+        p_list = list(df_cargas[mask]["Codigo"])
+        max_v = max_mw_posicion(p_list)
+        df_max["max_value"].loc[item] += max_v
+
+        # df_max["max_value"].loc[subestation] = df_max["max_value"].loc[subestation]/ len(p_list)
+
+    df_result = pd.DataFrame(index=df_demanda.columns,
+                             columns=["current_value", "max_value", "dif", "percentage", "timestamp"])
+    for subestation in df_demanda.columns:
+        df_result.at[subestation, "current_value"] = df_demanda[subestation].loc[timestamp]
+        df_result.at[subestation, "max_value"] = df_max.at[subestation, "max_value"]
+        check = df_result.at[subestation, "max_value"] - df_result.at[subestation, "current_value"]
+        if check > 0:
+            df_result.at[subestation, "dif"] = round(check, 1)
+        else:
+            df_result.at[subestation, "dif"] = 0
+
+    df_result["timestamp"] = str(timestamp)
+    df_result["percentage"] = df_result["current_value"] / df_result["current_value"].sum()
+    df_result["percentage"] = [str(round(x * 100, 2)) + " %" for x in df_result["percentage"]]
+
+    # df_result.sort_values(by=["current_value"], ascending=False, inplace=True)
+    return df_result
+
+
+def max_mw_posicion(posicion_list, time_range=None):
+    dt_delta = dt.timedelta(hours=12)
+
+    if time_range is None:
+        t_fin = timestamp_now()
+        t_ini = dt.datetime.now() - dt.timedelta(days=365)
+    else:
+        t_ini = time_range.StartTime.ToString("yyyy-MM-dd hh:mm:ss")
+        t_fin = time_range.EndTime.ToString("yyyy-MM-dd hh:mm:ss")
+
+    tmp_name = "max_mw_posicion" + str(posicion_list) + str(t_fin)[:10] + ".pkl"
+    tmp_file = tmp.retrieve_file(tmp_name, dt_delta)
+    if tmp_file is not None:
+        return tmp_file
+
+    sql_str = "SELECT t.Posicion, t.MV_Validado MW, CONCAT(t.Fecha, ' ' , t.Hora) as Timestamp " + \
+              " FROM SIVO.dbo.DV_Entrega t where t.Fecha" + \
+              " between '{0}' and '{1}' " + \
+              " and t.Posicion in ( {2} ) order by Timestamp"
+
+    posicion_list = str(posicion_list)
+    posicion_list = posicion_list[1:].replace("]", "")
+
+    sql_str = sql_str.format(t_ini, t_fin, posicion_list)
+    try:
+        pd_resp = pd.read_sql(sql_str, gop_svr.conn)
+        pd_resp = pd_resp.groupby("Timestamp")["MW"].sum()
+        max_value = pd_resp.max()
+        tmp.save_variables(tmp_name, max_value)
+        return max_value
+    except Exception as e:
+        print(e)
+        return 0
+
+
+def detalle_puntos_entrega(provincia=None, timestamp=None):
+    if timestamp is None:
+        timestamp = time_last_30_m()
+
+    sql_str = "SELECT PSC.IdPosicionConectada ID, UN.Nombre UNegocio,SUB.Nombre Subestacion, C.Nombre Posicion," + \
+              " c.Codigo, TAG.TAG, TAG.Descripcion, PR.Nombre Provincia, PSC.FechaAlta, PSC.FechaBaja" + \
+              " FROM SIVO.dbo.CFG_PosicionesConectadas PSC" + \
+              " INNER JOIN CFG_ElementosConectados ECO on ECO.IdElementoConectado = PSC.IdElementoConectado" + \
+              " INNER JOIN CFG_Carga CAR on ECO.IdCarga = CAR.IdCarga" + \
+              " INNER JOIN CFG_UnidadNegocio UN on CAR.IdUNegocio = UN.IdUNegocio" + \
+              " INNER JOIN CFG_SubEstacion SUB on PSC.IdSubestacion = SUB.IdSubestacion" + \
+              " INNER JOIN CFG_Posicion C on PSC.IdPosicion = C.IdPosicion" + \
+              " INNER JOIN CFG_ElementoTAG ETAG on c.IdPosicion = ETAG.IdElemento" + \
+              " INNER JOIN CFG_TAG TAG on ETAG.IdTAG = TAG.IdTAG" + \
+              " INNER JOIN CFG_Provincia PR on SUB.IdProvincia = PR.IdProvincia" + \
+              " WHERE '{0}' between PSC.FechaAlta and isnull(PSC.FechaBaja, '{0}')" + \
+              " AND TAG.TAG LIKE '%P.CARGA%.AV'" + \
+              " {1}" + \
+              " ORDER BY SUB.Nombre"
+
+    if provincia is None:
+        sql_str = sql_str.format(timestamp, "")
+        df_cargas = pd.read_sql(sql_str, gop_svr.conn)
+
+    else:
+        sql_pr = "AND PR.Nombre = '{0}'".format(provincia)
+        sql_str = sql_str.format(timestamp, sql_pr)
+        df_cargas = pd.read_sql(sql_str, gop_svr.conn)
+
+    config_path_file = script_path.replace('\my_lib\calculations', empresas_file_config)
+    df_exceptions = pd.read_excel(config_path_file, sheet_name='excepciones_carga')
+    exclude_idx = list(set(df_exceptions["ID"]).intersection(df_cargas["ID"]))
+    df_cargas.index = df_cargas["ID"]
+    df_cargas.drop(index=exclude_idx, inplace=True)
+    df_exceptions = df_exceptions[df_exceptions["Provincia"] == provincia]
+    df_cargas = df_cargas.append(df_exceptions)
+
+    return df_cargas
 
 
 """
@@ -787,14 +1225,6 @@ def time_last_30_m():
     dt = dt.replace(second=0, microsecond=0)
 
     return dt
-
-"""
-    result = 0
-    if len(df.index) > 3:
-        result = df.iloc[1:-1].sum() * dx + (df.iloc[0] + df.iloc[-1]) * (dx/2)
-    else:
-        result = df.sum() * dx
-"""
 
 
 def test():

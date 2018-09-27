@@ -22,22 +22,26 @@
     <script type="text/javascript" src="/static/js_lib/sankey.js"></script>
     <script type="text/javascript" src="/static/my_js/draw_sankey.js"></script>
 
+    <script>
+        let selected_level = '{{ detail }}';
+    </script>
+
 {% endblock %}
 
 {% block controls %}
     <div id="controls" style="position: absolute; top: 70px; right: 2%; z-index: 10;">
-        <button class="glyphicon glyphicon-globe btn" title="Inicio" onclick="nivel_global();"
+        <button class="glyphicon glyphicon-globe btn" title="Inicio" onclick="main('global');"
                 style="font-size: 14pt; background: transparent">
         </button>
-        <button class="glyphicon  glyphicon-tree-conifer btn" title="Nivel regional" onclick="nivel_regional();"
-                style="font-size: 14pt; background: transparent">
-        </button>
-
-        <button class="glyphicon glyphicon-briefcase btn" title="Nivel empresarial" onclick="nivel_empresarial();"
+        <button class="glyphicon  glyphicon-tree-conifer btn" title="Nivel regional" onclick="main('regional');"
                 style="font-size: 14pt; background: transparent">
         </button>
 
-         <button class="glyphicon glyphicon-screenshot btn" title="Nivel provincial" onclick="nivel_provincial();"
+        <button class="glyphicon glyphicon-briefcase btn" title="Nivel empresarial" onclick="main('empresarial');"
+                style="font-size: 14pt; background: transparent">
+        </button>
+
+         <button class="glyphicon glyphicon-screenshot btn" title="Nivel provincial" onclick="main('provincial');"
                 style="font-size: 14pt; background: transparent">
         </button>
 
@@ -47,53 +51,73 @@
 {% block panels %}
 
     <div id="panel_flotante_superior">
-        <div id="panel_1"  class="float_container" style="top: 10%; left: 1%; width: 20em; height: 12em">
-          <div class="float_title_white" style="width: 100%"> DEMANDA NACIONAL </div>
+        <div id="panel_1"  class="float_container" style="top: 7.5%; left: 1%; width: 20em; height: 6em">
+            <span id="id_note" style="font-size: 10pt; position: relative; left:101%"> *. </span>
+            <div class="float_title_white" style="width: 100%"> DEMANDA NACIONAL </div>
             <div class="float_value_white" style="width: 100%"> <span id="demanda"> ----- </span>  MW</div>
         </div>
 
-        <div id="panel_2"  class="float_container" style="top: 20%; left: 1%; width: 20em; height: 12em">
+        <div id="panel_2"  class="float_container" style="top: 20%; left: 1%; width: 20em; height: 6em">
           <div class="float_title_white" style="width: 100%"> GENERACIÓN TOTAL </div>
-            <div class="float_value_white" style="width: 100%"> <span id="produccion_mw"> ------ </span></div>
+            <div class="float_value_white" style="width: 100%"> <span id="produccion_mw"> ------ </span> MW</div>
         </div>
 
-        <div id="panel_3"  class="float_container" style="top: 20%; left: 24em; width: 20em; height: 12em">
+        <div id="panel_3"  class="float_container" style="top: 20%; left: 24em; width: 20em; height: 6em">
           <div class="float_title_white" style="width: 100%"> RESERVA </div>
             <div class="float_value_white" style="width: 100%"> <span id="reserva"> ------ </span> MW</div>
         </div>
 
-        <div id="panel_4"  class="float_container" style="top: 30%; left: 1%; width: 20em; height: 12em">
+        <div id="panel_4"  class="float_container" style="top: 30%; left: 1%; width: 20em; height: 6em">
           <div class="float_title_white" style="width: 100%"> EXPORTACIÓN </div>
-            <div class="float_value_white" style="width: 100%"> <span id="exportacion_mw"> ------ </span></div>
+            <div class="float_value_white" style="width: 100%"> <span id="exportacion_mw"> ------ </span> MW </div>
         </div>
 
-        <div id="panel_5"  class="float_container" style="top: 30%; left: 24em; width: 20em; height: 12em">
+        <div id="panel_5"  class="float_container" style="top: 30%; left: 24em; width: 20em; height: 6em">
           <div class="float_title_white" style="width: 100%"> IMPORTACIÓN </div>
             <div class="float_value_white" style="width: 100%"> <span id="importacion_mw"> ------ </span> MW</div>
         </div>
 
 
-        <div id="panel_2"  class="float_container" style="top: 55%; left: 72%; width: 18em; height: 12em">
+        <div id="panel_s"  class="float_container" style="top: 45%; left: 85%">
           <div class="float_value_white" style="width: 100%"> N° SUBESTACIONES: </div>
         </div>
 
-        <div id="panel_2"  class="float_container" style="top: 60%; left: 74%; width: 8em; height: 12em">
+        <div id="panel_s1"  class="float_container" style="top: 50%; left: 74%; width: 8em; height: 12em">
           <div class="float_title_white" style="width: 100%"> 500 kV </div>
             <div class="float_value_white" style="width: 100%"> <span id="sub_500_total"> 4 </span></div>
         </div>
 
-        <div id="panel_3"  class="float_container" style="top: 60%; left: 82%; width: 8em; height: 12em">
+        <div id="panel_s2"  class="float_container" style="top: 50%; left: 82%; width: 8em; height: 12em">
           <div class="float_title_white" style="width: 100%"> 230 kV </div>
             <div class="float_value_white" style="width: 100%"> <span id="sub_230_total"> 26 </span></div>
         </div>
 
-        <div id="panel_4"  class="float_container" style="top: 60%; left: 90%; width: 8em; height: 12em">
+        <div id="panel_s3"  class="float_container" style="top: 50%; left: 90%; width: 8em; height: 12em">
           <div class="float_title_white" style="width: 100%"> 138 kV </div>
             <div class="float_value_white" style="width: 100%"> <span id="sub_138_total"> 54 </span></div>
         </div>
+
+        <div id="panel_inf"  class="float_container" style="top: 59.9%; left: 2px; width: 18em">
+            <div  style="width: 100%; font-size: 9pt"> <span id="info"> ------ </span></div>
+        </div>
+
+
     </div>
 
+    <!-- Trigger/Open The Modal -->
+    <!--button id="myBtn">Open Modal</button>
 
+    <!-- The Modal -->
+    <div id="myModal" class="modal">
+
+      <!-- Modal content -->
+      <div class="modal-content" >
+        <span class="close">&times;</span>
+          <div id="modal_title"  class="modalTitle"> Título </div>
+          <div id="modal_content"></div>
+      </div>
+
+    </div>
 
 
 
@@ -103,8 +127,34 @@
 
 
     <script type="text/javascript" src="/static/my_js/mp_ecuador_sala_control.js"></script>
+<script>
+    // Get the modal
+    var modal = document.getElementById('myModal');
 
+    // Get the button that opens the modal
+    var btn = document.getElementById("myBtn");
 
+    // Get the <span> element that closes the modal
+    var span = document.getElementsByClassName("close")[0];
+
+    // When the user clicks the button, open the modal
+    /*
+    btn.onclick = function() {
+        modal.style.display = "block";
+    }*/
+
+    // When the user clicks on <span> (x), close the modal
+    span.onclick = function() {
+        modal.style.display = "none";
+    }
+
+    // When the user clicks anywhere outside of the modal, close it
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+</script>
 
 
 {% endblock %}

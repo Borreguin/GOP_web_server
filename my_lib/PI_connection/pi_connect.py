@@ -92,7 +92,7 @@ class PIserver:
             print("[pi_connect] [{0}] no correct format".format(delta_time))
         return span
 
-    def interpolated_of_tag_list(self, tag_list, time_range, span):
+    def interpolated_of_tag_list(self, tag_list, time_range, span, numeric=False):
         """
         Return a DataFrame that contains the values of each tag in column
         and the timestamp as index
@@ -105,10 +105,10 @@ class PIserver:
         for tag in tag_list:
             pi_points.append(PI_point(self, tag))
 
-        df_result = pi_points[0].interpolated(time_range, span, as_df=True, numeric=False)
+        df_result = pi_points[0].interpolated(time_range, span, as_df=True, numeric=numeric)
 
         for piPoint in pi_points[1:]:
-            df_result = pd.concat([df_result, piPoint.interpolated(time_range, span, numeric=False)], axis=1)
+            df_result = pd.concat([df_result, piPoint.interpolated(time_range, span, numeric=numeric)], axis=1)
 
         return df_result
 
