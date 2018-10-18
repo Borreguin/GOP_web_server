@@ -1,6 +1,16 @@
 let general_range = [500, 4200]; //"#bcbddc"
-let color_band = ["#969696", "#006080" , "#fdae6b", "#31a354", "#00b3b3", "#999900", "#9ecae1",
-                    "#fd8d3c", "#a1d99b"];
+let color_band = ['rgba(255, 170, 0, 0.8)',
+    "#006080",
+    "#31a354",
+    "#969696",
+    "#fdae6b",
+    "#00b3b3",
+    "#999900",
+    "#5a7c91",
+    "#fd8d3c",
+    "#a1d99b",
+    "#c262e1",
+    "#5cb353"];
 
 function nivel_global(){
 
@@ -12,11 +22,22 @@ function nivel_global(){
           .defer(d3.json, '/cal/demanda_empresas/'+ stamp_time + "&7")
           .defer(d3.json, '/cal/demanda_nacional_desde_sivo')
           .defer(d3.json, '/cal/informacion_sankey_generacion_demanda')
-          .await(function(error, ec_map, js_barras, js_dm, js_sankey){
+          .defer(d3.json, '/cal/maxima_demanda_nacional')
+          .await(function(error, ec_map, js_barras, js_dm, js_sankey, js_max){
                 if(error) throw error;
-                dw_sankey = plot_sankey(error, js_sankey);
-                update_trend(error, js_dm);
+                plot_sankey(error, js_sankey, "Demanda Nacional");
                 update_barras_demanda(error, js_barras);
+                let mx_date = js_max[0]["Fecha"];
+                queue()
+                    .defer(d3.json, '/cal/demanda_nacional_desde_sivo/' + mx_date)
+                    .await(function (error, js_dm_hist) {
+                        let dats = [js_dm_hist, js_dm];
+                        let labels = [mx_date + ": Histórico", "Demanda actual" ];
+                        let ls_color = ['rgba(255, 255, 255, 0.2)', 'rgba(255, 170, 0, 0.8)'];
+                        update_trend(error, dats, labels, ls_color);
+                        plot_maxima_demanda(error, js_max)
+                    });
+
            });
 }
 
@@ -33,11 +54,11 @@ function nivel_regional() {
           .await(function(error, ec_map, js_dm_reg, js_sankey, js_barras){
                 if(error) throw error;
                 ec_map = pintar_regiones_del_ecuador(ec_map);
-                dw_sankey = plot_sankey(error, js_sankey);
+                dw_sankey = plot_sankey(error, js_sankey, "Demanda Nacional");
                 let colors = {"Sierra": "#0e283b" , "Costa": "rgba(100, 10, 10, 1)", "Oriente": "rgba(0, 74, 86, 1)"};
                 st1 = update_stacked_trend(error, js_dm_reg, colors, "DEMANDA NACIONAL [MW]");
                 st2 = update_colored_bars(error, js_barras, colors);
-                if(ec_map != undefined && dw_sankey != undefined && st1 != undefined && st2 != undefined){
+                if(ec_map !== undefined && dw_sankey !== undefined && st1 !== undefined && st2 != undefined){
                     mover_regiones();
                     stop_all();
                 }
@@ -114,7 +135,7 @@ function plot_maxima_demanda(error, graph_data) {
             x1: 1,
             y1: generacion_maxima,
             line:{
-                color: '#ffaa00',
+                color: '#4a89bf',
                 width: 2,
                 dash:'dot'
             }
@@ -132,7 +153,7 @@ function plot_maxima_demanda(error, graph_data) {
           text: ['máxima demanda histórica'],
           textposition: 'top',
           type: 'scatter',
-          marker:{color: '#ffaa00'},
+          marker:{color: '#4a89bf'},
           textfont: {size: 12}
     };
     Plotly.relayout('grid_1', layout);
@@ -163,7 +184,7 @@ function update_barras_demanda(error, graph_data) {
             textposition: 'auto', name: "Empresa",
             hoverinfo: 'none',
             marker: {
-                color: 'rgba(14, 40, 59, 0.8)',
+                color: 'rgba(255, 170, 0, 0.9)',
                 opacity: 1
             }
         },
@@ -217,7 +238,7 @@ function update_barras_demanda(error, graph_data) {
             font: {
               //family: 'Arial',
               size: 12,
-              color: 'rgb(255, 255, 255)',
+              color: 'rgb(0, 0, 0)',
 
             },
              showarrow: false,
@@ -515,7 +536,7 @@ function update_stacked_trend(error, graph_data, color_ls, title) {
     Plotly.react('grid_1', traces, layout);
 
 
-    if( title == "DEMANDA NACIONAL [MW]"){
+    if( title === "DEMANDA NACIONAL [MW]"){
 
     d3.select('#demanda')
         .text(  format_w_spaces(parseInt(last_value)));
@@ -531,33 +552,52 @@ function update_stacked_trend(error, graph_data, color_ls, title) {
 
 
 
-function update_trend(error, graph_data) {
+function update_trend(error, graph_data, labels, ls_color) {
     let layout = get_default_layout();
 
-    let g_data = graph_data["Demanda nacional"];
+    let g_current = graph_data[1]["Demanda nacional"];
 
-    let x = Object.keys(g_data);
-    let y = Object.values(g_data);
-    // load_trend(x, y, layout, 'grid_1');
-    let trace1 = {
-        x: x,
-        y: y,
-        type: 'scatter',
-        mode: 'lines',
-        fill: 'tozeroy',
-        name: 'Demanda',
-        fillcolor : 'rgba(255, 255, 255, 0.5)',
-        line: {
-            color: 'rgba(14, 40, 59, 0.8)',
-            width: 3,
-            simplify:false
+    let x = Object.keys(g_current);
+    let traces = [];
+    let y;
+
+    for(let id in graph_data){
+
+        let g_data = graph_data[id]["Demanda nacional"];
+        let y_value = Object.values(g_data);
+        y = y_value;
+        // load_trend(x, y, layout, 'grid_1');
+        let color_line;
+       if(id === "0"){
+            color_line = 'rgba(255,255,255,0.4)';
+        }else{
+            color_line = ls_color[id];
         }
-    };
+        let trace1 = {
+            x: x,
+            y: y_value,
+            type: 'scatter',
+            mode: 'lines',
+            fill: 'tozeroy',
+            name: labels[id],
+            fillcolor : ls_color[id],
+            line: {
+                // color: 'rgba(255,255,255,1)',
+                color: color_line,
+                width: 2,
+                simplify:false
+            }
+        };
+        traces.push(trace1)
+
+
+
+    }
+
     layout.yaxis.range = general_range;
     layout.yaxis.autorange = false;
     // Plotly.plot('grid_1', [trace1], layout);
-    Plotly.react('grid_1', [trace1], layout);
-
+    Plotly.react('grid_1', traces, layout);
     /* actualizar valor de demanda nacional*/
     let last_value = 0;
     for(let i=0;i < y.length; i++){
@@ -577,14 +617,11 @@ function update_trend(error, graph_data) {
     d3.select('#info')
         .text("1. Demanda en bornes de generación");
 
-    url = '/cal/maxima_demanda_nacional';
-    queue()
-        .defer(d3.json, url)
-        .await(plot_maxima_demanda);
+
 }
 
 
-function plot_sankey(error, sankey_data) {
+function plot_sankey(error, sankey_data, title) {
 
     let units = "MW";
 
@@ -614,33 +651,68 @@ function plot_sankey(error, sankey_data) {
 
     // set the color scale for the sankey:
 
-    let colors =  [ "#80bfff", "#ccccb3", "#AC8749", "#009900"];
-
+    let colors =  [];
+    let conf_color = {
+        "Producción": "#ccccb3",
+        "Importación": "#cc0000",
+        "Exportación": "#0e283b",
+        "Demanda Nacional": "#ffaa00",
+        "Hidroeléctrica":"#80bfff",
+        "Termoeléctrica":"#AC8749",
+        "No convencional":"#009900",
+        "Costa"       :"rgba(100, 10, 10, 1)",
+        "Sierra"      :"#0e283b",
+        "Oriente"     :"rgba(0, 74, 86, 1)",
+        "Pérdidas"    :"rgba(255, 10, 10, 1)",
+        "CNEL"        :"#64467d",
+        "Empresas Eléctricas"    :"#4e93c5",
+        "S.N.I"       :"#a05e83",
+        "Gen. Inmersa"     :"#aeb316",
+        "Gen. Local"       :"#5b5b5b"
+    };
 
     // set generacion total, exportación, importación
     let res = {produccion_mw : 0, importacion_mw: 0, exportacion_mw : 0};
+    let nodes = [];
     for(let id in sankey_data){
         let d = sankey_data[id];
         if(d.target === "Producción"){  res.produccion_mw += d.value;}
-        if(d.source === "Importación"){ res.importacion_mw = d.value; colors.push("#cc0000");}
-        if(d.target === "Exportación"){ res.exportacion_mw = d.value; colors.push("#0e283b");}
-        if(d.target === "Demanda Nacional"){ colors.push("#ffaa00"); }
-        if(d.target === "Costa"){       colors.push("rgba(100, 10, 10, 1)");}
-        if(d.target === "Sierra"){      colors.push("#0e283b");}
-        if(d.target === "Oriente"){     colors.push("rgba(0, 74, 86, 1)");}
-        if(d.target === "Pérdidas"){    colors.push("rgba(255, 10, 10, 1)");}
-        if(d.target === "CNEL"){        colors.push("#64467d");}
-        if(d.target === "Empresas Eléctricas"){    colors.push("#4e93c5");}
+        if(d.source === "Importación"){ res.importacion_mw = d.value;}
+        if(d.target === "Exportación"){ res.exportacion_mw = d.value;}
+        if(!is_in(d.target,nodes)){
+            nodes.push(d.target);
+        }
+        if(!is_in(d.source, nodes)){
+            nodes.push(d.source);
+        }
     }
+
+    if(title === "Demanda Nacional"){
+        for(let id in res){
+            d3.select("#" + id)
+                .text( format_w_spaces(res[id]) );
+        }
+    }
+
+    nodes.forEach(function (d) {
+
+         if( conf_color[d] === undefined){
+             if( d.search("Demanda") >= 0) { colors.push("#ffaa00");}
+             else{
+                 colors.push("#a7a3a8");
+             }
+         }
+         else{
+            colors.push(conf_color[d]);
+         }
+
+    });
 
     let color_scale = d3.scale.ordinal()
-                       .domain([ ])
-                               .range(colors);
+        .domain(nodes)
+        .range(colors);
 
-    for(let id in res){
-        d3.select("#" + id)
-            .text( format_w_spaces(res[id]) );
-    }
+
 
 
     dw_sankey = draw_sankey(sankey, svg_container, sankey_data, units, color_scale);

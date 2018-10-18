@@ -8,24 +8,24 @@ import pandas as pd
 import datetime as dt
 import openpyxl as pyxl
 from my_lib.GOP_connection import GOPserver as op
-import sqlalchemy as sql_a
+import os
 
 gop_svr = op.GOPserver()
 
 """ Variables por defecto: """
-layout_path_file = "S:/Aplicaciones Procesos/Aplicaciones SIVO/DATOSPROG_PLANTILLA.xlsx"
-path_result_file = "P:/Despacho/DP_yyyymmdd.xlsx"
-despacho_path_file = "M:/Despacho Prog/Pred_{0}.xlsx"
-redespacho_path_file = "M:/Redespachos/A Ejecutarse/R{0}_{1}.xls"
-# mem_file_path_file =  "M:/Genemp/Año2018/0718/25/DESPACHOPROG_2018-07-25.xlsx"
-prog_file_path_file = "M:/Genemp/AñoYYYY/mmyy/dd/DESPACHOPROG_YYYY-mm-dd.xlsx"
+layout_path_file = 'S:\\Aplicaciones Procesos\\Aplicaciones SIVO\\DATOSPROG_PLANTILLA.xlsx'
+path_result_file = 'P:\\Despacho\\DP_yyyymmdd.xlsx'
+despacho_path_file = 'M:\\Despacho Prog\\Pred_{0}.xlsx'
+redespacho_path_file = 'M:\\Redespachos\\A Ejecutarse\\R{0}_{1}.xls'
+# mem_file_path_file =  'M:\\Genemp\\Año2018\\0718\\25\\DESPACHOPROG_2018-07-25.xlsx'
+prog_file_path_file = 'M:\\Genemp\\AñoYYYY\\mmyy\\dd\\DESPACHOPROG_YYYY-mm-dd.xlsx'
 
 id_columns = ['Empresa', 'UNegocio', 'Central', 'GrupoGeneracion', 'Unidad']
 desp_columns = ['EsRedespacho', 'NumRedespacho', 'HoraVigencia']
 data_columns = ['Fecha', 'Hora', 'MV', 'Precio']
 table_columns = id_columns + desp_columns + data_columns
 
-etiquetas_exportacion = ['ECUACOLO230',	'ECUACOLO138',	'ECUAPERU230']
+etiquetas_exportacion = ['ECUACOLO230', 'ECUACOLO138',	'ECUAPERU230']
 
 
 def run_process_for(dt_date):
@@ -175,7 +175,7 @@ def run_process_for(dt_date):
     send_mail(msg_to_send=msgs, subject=title)
     print(msgs.encode('ascii', 'ignore'))
 
-    return True
+    return title, msgs
 
 
 def obtener_hora_24_de_ultimo_despacho(fecha_t):
@@ -291,7 +291,7 @@ def run_despacho(dt_date, df_info_total, code_list, thermo_list, saveSIVO=True,
 
     # Creando los valores de fecha y hora:
     fecha_values = [x.strftime('%Y-%m-%d') for x in df_despacho.index]
-    hora_values = [x.strftime('%H:%M:%S') for x in df_despacho.index]
+    hora_values = [x.strftime('%H:%\\qcitbfwnas01%S') for x in df_despacho.index]
 
     # Iniciando el dataframe de respuesta:
     df_result = pd.DataFrame(columns=table_columns)
@@ -445,7 +445,7 @@ def subir_a_SIVO(df_result):
         list_generation_group = list(set(df_result["GrupoGeneracion"]))
         list_generation_group.sort()
 
-        err_i = 0
+        err_i, e = 0, None
         entities = set()
         for group in list_generation_group:
             try:
@@ -459,7 +459,7 @@ def subir_a_SIVO(df_result):
 
         if err_i == len(list_generation_group):
             msg += "\n[Subir a DB SIVO]: \t Despacho programado ya existente"
-            print(exp)
+            # print(exp)
         elif len(entities) > 0:
             msg += "\n[Subir a DB SIVO]: \t Las siguientes entidades han sido añadidas al despacho programado: \n" + str(entities)
         else:
@@ -478,6 +478,8 @@ def get_info_despacho(dt_date, path_file):
 
 
 def get_codigos(path_file):
+    print(os.getcwd())
+    a = os.getcwd()
     df_t = read_excel_file(path_file, sheet_name="CÓDIGOS")
     if df_t.empty:
         return list(), set()
@@ -515,7 +517,7 @@ def run_tie_macro(dt_date):
     df_result_230_kV = give_format(df_result_230_kV, 'JAM230POM')
 
     # leyendo el archivo de Resultado:
-    path_file = "M:\Datos Predes\Resultado{0}.xls".format(dt_date.strftime("%d%m"))
+    path_file = "\qcitbfwnas01\Datos Predes\Resultado{0}.xls".format(dt_date.strftime("%d%m"))
     df = read_excel_file(path_file, skiprows=8)
     valid_columns = [x for x in df.columns if 'Unnamed' not in x]
     df = df[valid_columns]
@@ -536,8 +538,8 @@ def read_excel_file(path_file, **kwargs):
     df = pd.DataFrame()
     try:
         df = pd.read_excel(path_file, **kwargs)
-    except Exception as e:
-        print(e)
+    except Exception:
+        pass
     return df
 
 

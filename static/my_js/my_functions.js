@@ -157,6 +157,12 @@ function to_yyyy_mm_dd_hh_mm_ss(ct){
             + ct.getHours() + ":" + ct.getMinutes() + ":" + ct.getSeconds();
 }
 
+function to_yyyy_mm_dd(ct){
+
+    return ct.getFullYear() + "-" + ("0" + (ct.getMonth() + 1)).slice(-2) + "-" + ("0" + ct.getDate()).slice(-2);
+}
+
+
 /*
 queue()
     .defer(f1, "Vamos")

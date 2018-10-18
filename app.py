@@ -12,8 +12,10 @@ from my_lib.PI_connection import pi_connect as osi
 from my_lib.calculations import calculos as cal
 from my_lib.calculations import consultas as con
 from my_lib.hmm import real_time_application as hmm_ap
+from my_lib.hmm import Cargar_despacho_programado as c_desp
 from my_lib.encrypt import library_encrypt as en
 from my_lib.visualizations import visual_util as vi
+
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -21,6 +23,7 @@ warnings.filterwarnings("ignore", category=RuntimeWarning)
 import binascii
 from flask import Flask, render_template, jsonify, Response
 import flask_excel as excel
+from flask_cors import CORS
 import json
 import pandas as pd
 
@@ -29,7 +32,8 @@ import os
 script_path = os.path.dirname(os.path.abspath(__file__))
 # default code
 app = Flask(__name__)
-excel.init_excel(app)  # excel functions
+CORS(app)
+excel.init_excel(app)                       # excel functions
 # ______________________________________________________________________________________________________________#
 # ________________________________        GENERAL        VARIABLES       _______________________________________
 
@@ -176,6 +180,13 @@ def graph_trend_hydro_and_others_today():
     return json_data
 
 
+@app.route("/cargar_re_despacho/<string:fecha>")
+def cargar_re_despacho(fecha):
+    date = datetime.datetime.strptime(fecha, '%Y-%m-%d')
+    title, msgs = c_desp.run_process_for(date)
+    return jsonify(dict(title=title, msgs=msgs))
+
+
 @app.route("/pronostico/<string:entity>/<string:date>/<string:hour>")
 @app.route("/pronostico/<string:entity>/<string:date>/")
 @app.route("/pronostico/<string:entity>/<string:date>")
@@ -260,11 +271,32 @@ def graph_pronostico_demanda(description, date=None, hour=None, style="default")
 @app.route("/get_graph_layout/<string:style>")
 def define_layout(style):
     layout_graph = hmm_ap.get_layout(style)
-    return jsonify(layout_graph)
+    json_data = json.dumps(layout_graph, cls=plt_u.PlotlyJSONEncoder)
+    return json_data
 
 
 # ______________________________________________________________________________________________________
 # __________________________________ WEB SERVICES FUNCTIONS ____________________________________________
+
+@app.route("/informe_semanal")
+@app.route("/informe_semanal/<string:init_date>/<string:end_date>")
+def call_service(init_date=None, end_date=None):
+
+    if end_date is None:
+        end_date = datetime.datetime.now()
+        end_date = end_date.strftime("%Y-%m-%d")
+    if init_date is None:
+        init_date = datetime.datetime.now() - datetime.timedelta(days=7)
+        init_date = init_date.strftime("%Y-%m-%d")
+
+    import requests
+    to_send = [{'FechaInicio': init_date, 'FechaFin': end_date}]
+
+    response = requests.get('http://dop-wkstaado/CENSOLServices/PresentacionSemanal/',
+                         auth=('rsanchez', 'samweb'), params=to_send)
+    data = response.json()
+
+    return jsonify(data)
 
 
 @app.route("/tag/<string:tag_id>")
@@ -327,10 +359,13 @@ def get_cal(cal_id_function, parameters=None):      # id_encrypt=None
 
         if isinstance(result, pd.DataFrame):
             result.index = [str(x) for x in result.index]
-            try:
-                result = result.to_json(orient="columns")
-            except Exception as e:
-                result = result.to_json(orient="records")
+            for orient in ["columns", "records", "index", "split", "values"]:
+                try:
+                    result = result.to_json(orient=orient)
+                    break
+                except Exception as e:
+                    print(e)
+                    pass
 
             resp = Response(response=result,
                             status=200,
@@ -430,6 +465,6 @@ def download_pronostico_file(description, date=None, hour=None):        # style=
 
 if __name__ == '__main__':
     excel.init_excel(app)
-    # app.run(host='10.30.2.45', port=80)
+    app.run(host='10.30.2.45', port=80)
     # app.run(host='127.0.0.1', port=5000)
-    app.run()
+    # app.run()

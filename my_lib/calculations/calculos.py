@@ -37,6 +37,9 @@ system_path_file = "F:\DATO\Estad\System SIVO\SYSTEM yyyy.xlsx"
 empresas_file_config = "\static\\app_data\maps\empr_electricas_por_provincia.xlsx"
 
 
+yyyy_MM_dd_HH_mm_ss = "yyyy-MM-dd HH:mm:ss"
+yyyy_MM_dd = "yyyy-MM-dd"
+
 # ______________________________________________________________________________________________________________#
 
 
@@ -132,13 +135,14 @@ def generation_matrix(time_range):
     :return: DataFrame con los generadores y su producción que se encuentran en linea
     al corte de cada 30 minutos
     """
-    initial_date = time_range.StartTime.ToString("yyyy-MM-dd HH:mm:s")
-    final_date = time_range.EndTime.ToString("yyyy-MM-dd HH:mm:s")
-    sql = "SELECT [Central],[Unidad],[Tecnología]" + \
-          ",[TAG],[Potencia],[Fecha]" + \
-          " FROM [BOSNI].[dbo].[vHIST_UNIDAD_POT_EFECTIVA]" + \
-          " WHERE [Fecha] between '{0}' and '{1}'"
-    sql = sql.format(initial_date, final_date)
+    ini_date, end_date = pi_svr.start_and_time_of(time_range)
+    sql = "SELECT V.IdUnidad, U.Codigo U_Codigo, V.Central,V.Unidad, V.Tecnología ,V.TAG," + \
+          " V.Potencia,V.Fecha" + \
+          " FROM [BOSNI].[dbo].[vHIST_UNIDAD_POT_EFECTIVA] AS V" + \
+          " INNER JOIN CFG_Unidad U ON U.IdUnidad = V.IdUnidad" + \
+          " WHERE [Fecha] between '{0}'  and '{1}'"
+
+    sql = sql.format(ini_date, end_date)
 
     df_gen = pd.read_sql(sql, gop_svr.conn)
 
@@ -351,7 +355,8 @@ def other_generation_detail_now():
     total = generation_now('Otra generación')['value']
     df_r.at["Gas natural", "value"] = generation_now('Turbo Gas')['value']
     df_r.at["No convencional", "value"] = generation_now('No convencional')['value']
-    df_r.at["Calidad de servicio", "value"] = total - df_r["value"].loc["Gas natural"] - df_r["value"].loc["No convencional"]
+    df_r.at["Calidad de servicio", "value"] = total - df_r["value"].loc["Gas natural"] - df_r["value"].loc[
+        "No convencional"]
     df_r["percentage"] = df_r["value"] / total
     df_r["numeric"] = df_r["value"]
     df_r["value"] = [str(x) + " MWh" for x in df_r["value"]]
@@ -458,7 +463,7 @@ def demanda_nacional_desde_tag(ini_date=None, fin_date=None, delta=None):
 
 def demanda_nacional_desde_sivo(ini_date=None, fin_date=None):
     """
-    Esta función calcula la demanda nacional usando la matriz porosa de SIVO
+    Esta función calcula la demanda nacional usando la matriz de generación de SIVO
     :param ini_date:  string en formato: yyyy-mm-dd hh:mm:ss
     :param fin_date:  string en formato: yyyy-mm-dd hh:mm:ss
     :return:
@@ -466,19 +471,112 @@ def demanda_nacional_desde_sivo(ini_date=None, fin_date=None):
 
     if ini_date is None and fin_date is None:
         time_range = pi_svr.time_range_for_today_all_day
+    elif isinstance(ini_date, str) and fin_date is None:
+        fin_date = convert_str_to_time(ini_date)
+        fin_date = fin_date + dt.timedelta(days=1)
+        time_range = pi_svr.time_range(ini_date, fin_date)
     else:
         time_range = pi_svr.time_range(ini_date, fin_date)
 
-    df_gen = generation_matrix(time_range)
+    str_ini, str_end = pi_svr.start_and_time_of(time_range)
+
+    sql_str = "SELECT Empresa, UNegocio, Central, GrupoGeneracion, Unidad, concat(Fecha, ' ', Hora) Fecha" + \
+              " ,MV_Validado Potencia,  TAG_MV FROM DV_Generacion" + \
+              " WHERE Fecha BETWEEN '{0}' AND '{1}'".format(str_ini, str_end)
+
+    df_gen = pd.read_sql(sql_str, gop_svr.conn)
+    if df_gen.empty:
+        df_gen = generation_matrix(time_range)
+
     df_gen = df_gen[df_gen["Potencia"] > 0]
-    df_gen = df_gen[["Potencia", "Fecha"]].groupby("Fecha").sum()
-    df_importacion = intercambio_programado_importacion(time_range)
-    df_exportacion = intercambio_programado_exportacion(time_range)
-    date_range = pd.date_range(time_range.get_StartTime().ToString("yyyy-MM-dd HH:mm:s"),
-                               time_range.get_EndTime().ToString("yyyy-MM-dd HH:mm:s"), freq="30T")
+    df_details = df_gen[["Potencia", "Fecha", "Central"]].groupby(["Central", "Fecha"]).sum()
+    df_gen = df_gen[["Potencia", "Fecha", "Central"]].groupby(["Fecha"]).sum()
+    df_gen.index = pd.to_datetime(df_gen.index)
+
+    df_gen.sort_index(inplace=True)
+    df_gen = df_gen.loc[str_ini:str_end]
+
+    df_importacion = importacion_desde_sivo(time_range)
+    if df_importacion.empty:
+        df_importacion = intercambio_programado_importacion(time_range)
+        df_importacion =df_importacion["Importación"]
+    else:
+        df_importacion = df_importacion.groupby(["Timestamp"])["MW"].sum()
+
+    df_exportacion = exportacion_desde_sivo(time_range)
+    if df_exportacion.empty:
+        df_exportacion = intercambio_programado_exportacion(time_range)
+        df_exportacion =df_exportacion["Exportación"]
+    else:
+        df_exportacion = df_exportacion.groupby(["Timestamp"])["MW"].sum()
+
+    date_range = pd.date_range(str_ini, str_end, freq="30T")
     df_result = pd.DataFrame(index=[str(x) for x in date_range], columns=["Demanda nacional"])
-    df_result["Demanda nacional"] = df_gen["Potencia"] + df_importacion["Importación"] - df_exportacion["Exportación"]
+    df_result["Demanda nacional"] = df_gen["Potencia"] + df_importacion - df_exportacion
+
     return df_result
+
+
+def importacion_desde_sivo(time_range_or_ini_time=None, end_time=None):
+
+    if time_range_or_ini_time is None and end_time is None:
+        time_range_or_ini_time = pi_svr.time_range_for_today_all_day
+    elif isinstance(time_range_or_ini_time, str):
+        end_time = convert_str_to_time(time_range_or_ini_time)
+        end_time += dt.timedelta(days=1)
+        time_range_or_ini_time = pi_svr.time_range(time_range_or_ini_time, str(end_time))
+    elif time_range_or_ini_time is not None and end_time is not None:
+        time_range_or_ini_time = pi_svr.time_range(time_range_or_ini_time, end_time)
+
+    str_ini, str_end = pi_svr.start_and_time_of(time_range_or_ini_time)
+
+    df_import = df_tags_importation()
+    ls_circuitos = str(set(df_import["Codigo"])).replace('{', '').replace('}', '')
+    sql_str = "SELECT Empresa, UNegocio, Elemento, MV_Validado MW, TAG, CONCAT(Fecha, ' ', Hora) Timestamp " \
+              "FROM DV_Flujo WHERE Elemento IN ({0}) " \
+              "AND Fecha BETWEEN '{1}' AND '{2}' " \
+              "AND TipoValidacion = 'FLUJO2' " \
+              " ORDER BY Timestamp".format(ls_circuitos, str_ini, str_end)
+
+    df_import = pd.read_sql(sql_str, gop_svr.conn)
+    if not df_import.empty:
+        df_import.set_index('Timestamp', inplace=True)
+        df_import.index = pd.to_datetime(df_import.index)
+        mask = (df_import.index >= pd.to_datetime(str_ini)) & (df_import.index <= pd.to_datetime(str_end))
+        df_import = df_import[mask]
+        df_import["MW"][df_import["MW"] < 0] = 0
+    return df_import
+
+
+def exportacion_desde_sivo(time_range_or_ini_time=None, end_time=None):
+
+    if time_range_or_ini_time is None and end_time is None:
+        time_range_or_ini_time = pi_svr.time_range_for_today_all_day
+    elif isinstance(time_range_or_ini_time, str):
+        end_time = convert_str_to_time(time_range_or_ini_time)
+        end_time += dt.timedelta(days=1)
+        time_range_or_ini_time = pi_svr.time_range(time_range_or_ini_time, str(end_time))
+    elif time_range_or_ini_time is not None and end_time is not None:
+        time_range_or_ini_time = pi_svr.time_range(time_range_or_ini_time, end_time)
+
+    str_ini, str_end = pi_svr.start_and_time_of(time_range_or_ini_time)
+
+    df_export = df_tags_exportation()
+    ls_circuitos = str(set(df_export["Codigo"])).replace('{', '').replace('}', '')
+    sql_str = "SELECT Empresa, UNegocio, Elemento, MV_Validado MW, TAG, CONCAT(Fecha, ' ', Hora) Timestamp " \
+              "FROM DV_Flujo WHERE Elemento IN ({0}) " \
+              "AND Fecha BETWEEN '{1}' AND '{2}' " \
+              "AND TipoValidacion = 'FLUJO1' " \
+              " ORDER BY Timestamp".format(ls_circuitos, str_ini, str_end)
+
+    df_export = pd.read_sql(sql_str, gop_svr.conn)
+    if not df_export.empty:
+        df_export.set_index('Timestamp', inplace=True)
+        df_export.index = pd.to_datetime(df_export.index)
+        mask = (df_export.index >= pd.to_datetime(str_ini)) & (df_export.index <= pd.to_datetime(str_end))
+        df_export = df_export[mask]
+        df_export["MW"][df_export["MW"] < 0] = 0
+    return df_export
 
 
 def demanda_empresas(time=None, level=-1):
@@ -497,10 +595,10 @@ def demanda_empresas(time=None, level=-1):
     df_config = pd.read_excel(config_path_file, sheet_name='demanda_empresas')
 
     year = dt.datetime.now().year
-    sql_str = 'SELECT t.Nom_UNegocio, t.Fecha, PotMax MW FROM SIVO.dbo.TMP_System_Dem t ' + \
-              "where YEAR(t.Fecha) = {0}"
+    sql_str = "SELECT t.Nom_UNegocio, t.Fecha, PotMax MW FROM SIVO.dbo.TMP_System_Dem t " + \
+              "where YEAR(t.Fecha) = {0}".format(year)
 
-    df_max = pd.read_sql(sql_str.format(year), gop_svr.conn)
+    df_max = pd.read_sql(sql_str, gop_svr.conn)
 
     if df_max.empty:
         year = year - 1
@@ -551,9 +649,9 @@ def maxima_demanda_nacional(year=None):
 
 def tendencia_demanda_nacional_por_regiones(time_range=None, span=None):
     # calculo disponible en 2 minutos
-    dt_delta = dt.timedelta(minutes=2)
+    valid_range = [time_last_30_m(), tiempo_de_corte(30)]
     tmp_name = "tendencia_demanda_nacional_por_regiones" + str(time_range) + str(span) + ".pkl"
-    tmp_file = tmp.retrieve_file(tmp_name, dt_delta)
+    tmp_file = tmp.retrieve_file(tmp_name)
     if tmp_file is not None:
         return tmp_file
 
@@ -575,7 +673,7 @@ def tendencia_demanda_nacional_por_regiones(time_range=None, span=None):
         df_values = factor.values * df_values
         df_result[region] = df_values.sum(axis=1, skipna=False)
         df_result[region] = df_result[region].round(decimals=1)
-    tmp.save_variables(tmp_name, df_result)
+    tmp.save_variables(tmp_name, df_result, valid_range=valid_range)
     return df_result
 
 
@@ -689,6 +787,7 @@ def detalle_generacion_potencia(detail='Total', timestamp=None):
     time_range = pi_svr.time_range(str(timestamp), str(timestamp))
     # time_range = pi_svr.time_range("2018-8-21 11:00:00", "2018-8-21 11:15:00")
     df_gen = filtrar_generacion_por(detail, time_range)
+    # print(df_gen)
     df_gen = df_gen[df_gen["Potencia"] > 0]
     return df_gen
 
@@ -764,6 +863,7 @@ def obtener_tag_name_por_descripcion(descripcion):
 
 
 def informacion_sankey_generacion_demanda(timestamp=None):
+
     if timestamp is None:
         timestamp = time_last_30_m()
 
@@ -773,18 +873,19 @@ def informacion_sankey_generacion_demanda(timestamp=None):
     for detail in details:
 
         df_gen = detalle_generacion_potencia(detail, timestamp)
-        df_gen = df_gen.groupby("Central").sum()
+        df_gen = df_gen.groupby("Central")["Potencia"].sum()
+        # print(df_gen)
 
-        if df_gen["Potencia"].sum() > 0:
+        if df_gen.sum() > 0:
             df_result.at[idx, "source"] = detail
-            df_result.at[idx, "value"] = round(df_gen["Potencia"].sum(), 1)
+            df_result.at[idx, "value"] = round(df_gen.sum(), 1)
             idx += 1
 
     gen_total = detalle_generacion_potencia("Total", timestamp)
     gen_total = gen_total[gen_total["Potencia"] > 0]["Potencia"].sum()
     no_convencional_mw = gen_total - df_result["value"].sum()
     if no_convencional_mw > 0:
-        df_result.at[idx, "source"] = "No convecional"
+        df_result.at[idx, "source"] = "No convencional"
         df_result.at[idx, "value"] = round(no_convencional_mw, 1)
         idx += 1
 
@@ -840,18 +941,18 @@ def informacion_sankey_generacion_demanda_regional(timestamp=None):
     for detail in details:
 
         df_gen = detalle_generacion_potencia(detail, timestamp)
-        df_gen = df_gen.groupby("Central").sum()
+        df_gen = df_gen.groupby("Central")["Potencia"].sum()
 
-        if df_gen["Potencia"].sum() > 0:
+        if df_gen.sum() > 0:
             df_result.at[idx, "source"] = detail
-            df_result.at[idx, "value"] = round(df_gen["Potencia"].sum(), 1)
+            df_result.at[idx, "value"] = round(df_gen.sum(), 1)
             idx += 1
 
     gen_total = detalle_generacion_potencia("Total", timestamp)
     gen_total = gen_total[gen_total["Potencia"] > 0]["Potencia"].sum()
     no_convencional_mw = gen_total - df_result["value"].sum()
     if no_convencional_mw > 0:
-        df_result.at[idx, "source"] = "No convecional"
+        df_result.at[idx, "source"] = "No convencional"
         df_result.at[idx, "value"] = round(no_convencional_mw, 1)
         idx += 1
 
@@ -913,18 +1014,18 @@ def informacion_sankey_generacion_demanda_nivel_empresarial(timestamp=None):
     for detail in details:
 
         df_gen = detalle_generacion_potencia(detail, timestamp)
-        df_gen = df_gen.groupby("Central").sum()
+        df_gen = df_gen.groupby("Central")["Potencia"].sum()
 
-        if df_gen["Potencia"].sum() > 0:
+        if df_gen.sum() > 0:
             df_result.at[idx, "source"] = detail
-            df_result.at[idx, "value"] = round(df_gen["Potencia"].sum(), 1)
+            df_result.at[idx, "value"] = round(df_gen.sum(), 1)
             idx += 1
 
     gen_total = detalle_generacion_potencia("Total", timestamp)
     gen_total = gen_total[gen_total["Potencia"] > 0]["Potencia"].sum()
     no_convencional_mw = gen_total - df_result["value"].sum()
     if no_convencional_mw > 0:
-        df_result.at[idx, "source"] = "No convecional"
+        df_result.at[idx, "source"] = "No convencional"
         df_result.at[idx, "value"] = round(no_convencional_mw, 1)
         idx += 1
 
@@ -975,6 +1076,64 @@ def informacion_sankey_generacion_demanda_nivel_empresarial(timestamp=None):
     return df_result.T
 
 
+def informacion_sankey_generacion_demanda_por_provincia(provincia, timestamp=None):
+    if timestamp is None:
+        timestamp = time_last_30_m()
+
+    time_range = pi_svr.time_range(str(timestamp), str(timestamp))
+    details = ['Gen. Inmersa', 'Gen. Local', 'S.N.I', 'Demanda ' + provincia]
+    df_result = pd.DataFrame(columns=["source", "target", "value", "timestamp"])
+
+    df_gen = generacion_por_provincia(provincia, time_range)
+    df_detalle = detalle_puntos_entrega(provincia, timestamp)
+    lst_posiciones = list(df_detalle["Codigo"])
+    df_gen_inmersa = generacion_inmersa_en_puntos_carga(lst_posiciones, time_range)
+    set_list = set(df_gen.columns).intersection(df_gen_inmersa.columns)
+    if len(set_list) == 0 and len(df_gen_inmersa.columns) > 0:
+        df_generacion_local = df_gen
+        df_gen_inmersa = pd.DataFrame()
+    else:
+        df_generacion_local = df_gen.drop(df_gen_inmersa.columns, axis=1)
+
+    gen_inmersa, gen_local = 0, 0
+    if not df_gen_inmersa.empty:
+        gen_inmersa = df_gen_inmersa.sum(axis=1).iloc[0]
+    if not df_generacion_local.empty:
+        gen_local = df_generacion_local.sum(axis=1).iloc[0]
+    demanda_provincia = demanda_por_provincia(provincia, timestamp)["current_value"].sum()
+    idx = 0
+
+    if demanda_provincia > (gen_inmersa + gen_local):
+        sni = demanda_provincia - (gen_inmersa + gen_local)
+        values = [gen_inmersa, gen_local, sni]
+        for d, v in zip(details, values):
+            idx += 1
+            if v > 0:
+                df_result.at[idx, "source"] = d
+                df_result.at[idx, "value"] = round(v, 1)
+                df_result.at[idx, "target"] = "Demanda " + provincia
+    else:
+        sni = (gen_inmersa + gen_local) - demanda_provincia
+        values = [gen_inmersa, gen_local]
+        for d, v in zip(details, values):
+            idx += 1
+            if v > 0:
+                df_result.at[idx, "source"] = d
+                df_result.at[idx, "value"] = round(v, 1)
+                df_result.at[idx, "target"] = "Gen. " + provincia
+
+        values = [sni, demanda_provincia]
+        for d, v in zip(details[2:], values):
+            idx += 1
+            if v > 0:
+                df_result.at[idx, "source"] = "Gen. " + provincia
+                df_result.at[idx, "value"] = round(v, 1)
+                df_result.at[idx, "target"] = d
+
+    df_result["timestamp"] = str(timestamp)
+    return df_result.T
+
+
 def demanda_por_nivel_empresarial(timestamp=None):
     if timestamp is None:
         timestamp = time_last_30_m()
@@ -999,9 +1158,9 @@ def demanda_por_nivel_empresarial(timestamp=None):
 
 def tendencia_demanda_nacional_por_nivel_empresarial(time_range=None, span=None):
     # calculo disponible en 2 minutos
-    dt_delta = dt.timedelta(minutes=2)
+    valid_range = [time_last_30_m(), tiempo_de_corte(30)]
     tmp_name = "tendencia_demanda_nacional_por_nivel_empresarial" + str(time_range) + str(span) + ".pkl"
-    tmp_file = tmp.retrieve_file(tmp_name, dt_delta)
+    tmp_file = tmp.retrieve_file(tmp_name)
     if tmp_file is not None:
         return tmp_file
 
@@ -1022,7 +1181,7 @@ def tendencia_demanda_nacional_por_nivel_empresarial(time_range=None, span=None)
         df_values = pi_svr.interpolated_of_tag_list(tag_list, time_range, span, numeric=True)
         df_result[nivel] = df_values.sum(axis=1, skipna=False)
         df_result[nivel] = df_result[nivel].round(decimals=1)
-    tmp.save_variables(tmp_name, df_result)
+    tmp.save_variables(tmp_name, df_result, valid_range=valid_range)
     return df_result
 
 
@@ -1033,10 +1192,10 @@ def tendencia_demanda_por_provincia(provincia, time_range=None, span=None):
     if "Santo Domingo de los Tsáchilas" == provincia:
         provincia = "Sto. Domingo de los Tsachilas"
 
-    # calculo disponible en 2 minutos
-    dt_delta = dt.timedelta(minutes=2)
-    tmp_name = "tendencia_demanda_por_provincia" + str(provincia) + str(time_range) + str(span) + ".pkl"
-    tmp_file = tmp.retrieve_file(tmp_name, dt_delta)
+    # calculo válido en cada 30 minutos
+    valid_range = [time_last_30_m(),  tiempo_de_corte(30)]
+    tmp_name = "tendencia_demanda_por_provincia_" + str(provincia) + str(time_range) + str(span) + ".pkl"
+    tmp_file = tmp.retrieve_file(tmp_name)
     if tmp_file is not None:
         return tmp_file
 
@@ -1045,7 +1204,9 @@ def tendencia_demanda_por_provincia(provincia, time_range=None, span=None):
     if span is None:
         span = span_30
 
-    df_cargas = detalle_puntos_entrega(provincia, time_range.StartTime.ToString("yyyy-MM-dd"))
+    str_ini, str_end = pi_svr.start_and_time_of(time_range)
+
+    df_cargas = detalle_puntos_entrega(provincia, str_ini)
     str_item = "Subestacion"
     item_set = set(df_cargas[str_item])
     if len(item_set) == 1:
@@ -1055,17 +1216,63 @@ def tendencia_demanda_por_provincia(provincia, time_range=None, span=None):
     df_result = pd.DataFrame(columns=item_set)
     for item in item_set:
         mask = (df_cargas[str_item] == item)
+        posiciones = list(df_cargas["Codigo"][mask])
         tag_list = list(df_cargas["TAG"][mask])
-        df_values = pi_svr.interpolated_of_tag_list(tag_list, time_range, span, numeric=True)
+
+        # Buscar demanda en SIVO, si no existe traerlos de PI-Server:
+        df_values = demanda_por_posicion_desde_sivo(posiciones, time_range)
+        if df_values.empty:
+            df_values = pi_svr.interpolated_of_tag_list(tag_list, time_range, span, numeric=True)
+            df_values.columns = posiciones
+
+        # Obtener generación inmersa desde SIVO
+        df_gen_inmersa = generacion_inmersa_en_puntos_carga(posiciones, time_range)
+
+        if not df_gen_inmersa.empty:
+            df_values = df_values.join(df_gen_inmersa, how='outer')
+
+        # En el caso que sea menor que cero entonces la demanda es cero
+        df_values = df_values.sum(axis=1, skipna=False)
         df_values[df_values < 0] = 0
-        df_result[item] = df_values.sum(axis=1, skipna=False)
+        df_result[item] = df_values
         df_result[item] = df_result[item].round(decimals=1)
 
     df_aux = df_result.dropna()
     df_result = df_result.T.sort_values(by=[df_aux.index[-1]], ascending=False)
     df_result = df_result.T
-    tmp.save_variables(tmp_name, df_result)
+    tmp.save_variables(tmp_name, df_result, valid_range)
     return df_result
+
+
+def demanda_por_posicion_desde_sivo(lst_posiciones, time_range=None):
+
+    if time_range is None:
+        time_range = pi_svr.time_range_for_today_all_day
+    ini_date, end_date = pi_svr.start_and_time_of(time_range)
+
+    str_posiciones = ''
+    if lst_posiciones is not None:
+        if isinstance(lst_posiciones, str):
+            str_posiciones = [lst_posiciones]
+
+        if isinstance(lst_posiciones, list):
+            str_posiciones = str(lst_posiciones).replace('[', '').replace(']', '')
+        str_posiciones = 'Posicion IN ({0})'.format(str_posiciones)
+
+    sql_str = "SELECT Posicion, MV_Validado, concat(Fecha, ' ', Hora) Timestamp " \
+              " FROM DV_Entrega " \
+              " WHERE {0} " \
+              " AND Fecha BETWEEN '{1}' AND '{2}'".format(str_posiciones, ini_date, end_date)
+
+    df_demanda = pd.read_sql(sql_str, gop_svr.conn)
+    if not df_demanda.empty:
+        df_demanda = df_demanda.pivot(index="Timestamp", columns="Posicion", values="MV_Validado")
+        df_demanda.index = pd.to_datetime(df_demanda.index)
+        mask = (pd.to_datetime(ini_date) <= df_demanda.index) & \
+               (df_demanda.index <= pd.to_datetime(end_date))
+        df_demanda = df_demanda[mask]
+
+    return df_demanda
 
 
 def demanda_por_provincia(provincia, timestamp=None):
@@ -1077,9 +1284,8 @@ def demanda_por_provincia(provincia, timestamp=None):
 
     if timestamp is None:
         timestamp = time_last_30_m()
-        time_range = pi_svr.time_range(str(timestamp), str(timestamp))
-    else:
-        time_range = None
+
+    time_range = pi_svr.time_range(str(timestamp), str(timestamp))
 
     df_demanda = tendencia_demanda_por_provincia(provincia, time_range)
     df_cargas = detalle_puntos_entrega(provincia, timestamp)
@@ -1099,18 +1305,16 @@ def demanda_por_provincia(provincia, timestamp=None):
         max_v = max_mw_posicion(p_list)
         df_max["max_value"].loc[item] += max_v
 
-        # df_max["max_value"].loc[subestation] = df_max["max_value"].loc[subestation]/ len(p_list)
-
     df_result = pd.DataFrame(index=df_demanda.columns,
                              columns=["current_value", "max_value", "dif", "percentage", "timestamp"])
-    for subestation in df_demanda.columns:
-        df_result.at[subestation, "current_value"] = df_demanda[subestation].loc[timestamp]
-        df_result.at[subestation, "max_value"] = df_max.at[subestation, "max_value"]
-        check = df_result.at[subestation, "max_value"] - df_result.at[subestation, "current_value"]
+    for item in df_demanda.columns:
+        df_result.at[item, "current_value"] = df_demanda[item].loc[timestamp]
+        df_result.at[item, "max_value"] = df_max.at[item, "max_value"]
+        check = df_result.at[item, "max_value"] - df_result.at[item, "current_value"]
         if check > 0:
-            df_result.at[subestation, "dif"] = round(check, 1)
+            df_result.at[item, "dif"] = round(check, 1)
         else:
-            df_result.at[subestation, "dif"] = 0
+            df_result.at[item, "dif"] = 0
 
     df_result["timestamp"] = str(timestamp)
     df_result["percentage"] = df_result["current_value"] / df_result["current_value"].sum()
@@ -1127,11 +1331,10 @@ def max_mw_posicion(posicion_list, time_range=None):
         t_fin = timestamp_now()
         t_ini = dt.datetime.now() - dt.timedelta(days=365)
     else:
-        t_ini = time_range.StartTime.ToString("yyyy-MM-dd hh:mm:ss")
-        t_fin = time_range.EndTime.ToString("yyyy-MM-dd hh:mm:ss")
+        t_ini, t_fin = pi_svr.start_and_time_of(time_range)
 
     tmp_name = "max_mw_posicion" + str(posicion_list) + str(t_fin)[:10] + ".pkl"
-    tmp_file = tmp.retrieve_file(tmp_name, dt_delta)
+    tmp_file = tmp.retrieve_file(tmp_name)
     if tmp_file is not None:
         return tmp_file
 
@@ -1148,7 +1351,7 @@ def max_mw_posicion(posicion_list, time_range=None):
         pd_resp = pd.read_sql(sql_str, gop_svr.conn)
         pd_resp = pd_resp.groupby("Timestamp")["MW"].sum()
         max_value = pd_resp.max()
-        tmp.save_variables(tmp_name, max_value)
+        tmp.save_variables(tmp_name, max_value, dt_delta=dt_delta)
         return max_value
     except Exception as e:
         print(e)
@@ -1195,6 +1398,140 @@ def detalle_puntos_entrega(provincia=None, timestamp=None):
     return df_cargas
 
 
+def detalle_generacion_inmersa(ls_position_code=None, timestamp=None):
+
+    if ls_position_code is None:
+        ls_position_code = ""
+    elif len(ls_position_code) == 0:
+        return pd.DataFrame()
+    else:
+        if isinstance(ls_position_code, str):
+            ls_position_code = [ls_position_code]
+        ls_position_code = str(ls_position_code).replace("[", "").replace("]", "")
+        ls_position_code = " AND P.Codigo IN ({0})".format(ls_position_code)
+
+    if timestamp is None:
+        timestamp = timestamp_now()
+
+    sql_str = "SELECT P.Codigo Posicion, U.Codigo CodUnidad, U.Nombre Unidad, PU.FechaInicio, PU.FechaFin" \
+              " FROM CFG_Posicion P " \
+              " INNER JOIN CFG_PosicionUnidad PU ON P.IdPosicion=PU.IdPosicion " \
+              " INNER JOIN CFG_Unidad U ON PU.IdUnidad=U.IdUnidad " \
+              " WHERE '{1}' between PU.FechaInicio " \
+              " AND isnull(PU.FechaFin, '{1}')" \
+              " {0} ".format(ls_position_code, timestamp)
+
+    df_gen_inmersa = pd.read_sql(sql_str, gop_svr.conn)
+    return df_gen_inmersa
+
+
+def generacion_inmersa_en_puntos_carga(list_posiciones=None, time_range=None):
+    if time_range is None:
+        timestamp = timestamp_now()
+        time_range = pi_svr.time_range_for_today_all_day
+    else:
+        timestamp = time_range.EndTime.ToString("yyyy-MM-dd")
+
+    df_gen_inmersa = detalle_generacion_inmersa(list_posiciones, timestamp)
+    if df_gen_inmersa.empty:
+        return pd.DataFrame()
+
+    code_gen_list = list(df_gen_inmersa["CodUnidad"])
+    if len(code_gen_list) > 0:
+
+        # Buscar generación en SIVO, si no existe, traerla de la matriz de generacion
+        df_value_gen = generacion_desde_sivo(code_gen_list, time_range)
+        if df_value_gen.empty:
+            df_value_gen = generation_matrix(time_range)
+            mask = df_value_gen["U_Codigo"].isin(code_gen_list)
+            df_value_gen = df_value_gen[mask]
+
+            # if not df_value_gen.empty:
+            df_value_gen = df_value_gen.pivot(index='Fecha', columns='U_Codigo',
+                                              values='Potencia')
+
+            # TODO: considerar valor de cero cuando no exista el index.
+            df_value_gen.fillna(value=0, inplace=True)
+            df_value_gen.index = pd.to_datetime(df_value_gen.index)
+            return df_value_gen
+
+        return df_value_gen
+
+    return pd.DataFrame()
+
+
+def generacion_desde_sivo(lst_cod_unidades=None, time_range=None):
+
+    if time_range is None:
+        time_range = pi_svr.time_range_for_today_all_day
+
+    str_ini, str_end = pi_svr.start_and_time_of(time_range)
+
+    str_cod_unidades = ''
+    if lst_cod_unidades is not None:
+        if isinstance(lst_cod_unidades, str):
+            str_cod_unidades = [lst_cod_unidades]
+        if isinstance(lst_cod_unidades, list):
+            str_cod_unidades = str(lst_cod_unidades).replace('[', '').replace(']', '')
+            str_cod_unidades = 'Unidad IN ({0})'.format(str_cod_unidades)
+
+    sql_str = "SELECT concat(Fecha, ' ', Hora) Timestamp, " \
+              " Empresa, Central, GrupoGeneracion, Unidad, MV_Validado " \
+              " FROM DV_Generacion " \
+              " WHERE {0} " \
+              "AND Fecha between '{1}' AND '{2}'".format(str_cod_unidades, str_ini, str_end)
+
+    df_gen = pd.read_sql(sql_str, gop_svr.conn)
+    if df_gen.empty:
+        df_gen = generation_matrix(time_range)
+        mask = df_gen['U_Codigo'].isin(lst_cod_unidades)
+        df_gen = df_gen[mask]
+        df_gen = df_gen.pivot(index='Fecha', columns='U_Codigo', values='Potencia')
+        df_gen.fillna(0, inplace=True)
+    else:
+        df_gen = df_gen.pivot(index='Timestamp', columns="Unidad", values="MV_Validado")
+        df_gen.index = pd.to_datetime(df_gen.index)
+        mask = (pd.to_datetime(str_ini) <= df_gen.index) & \
+               (df_gen.index <= pd.to_datetime(str_end))
+        df_gen = df_gen[mask]
+    return df_gen
+
+
+def generacion_por_provincia(provincia, time_range=None):
+    if "-" in provincia:
+        provincia = provincia.replace("-", " ")
+
+    if "Santo Domingo de los Tsáchilas" == provincia:
+        provincia = "Sto. Domingo de los Tsachilas"
+
+    provincia = provincia.upper()
+
+    if time_range is None:
+        time_range = pi_svr.time_range_for_today_all_day
+
+    str_ini, str_end = pi_svr.start_and_time_of(time_range)
+
+    sql_str = "SELECT Pr.Nombre, C2.Nombre Central, Un.Codigo, Un.Nombre, Un.FechaAlta, Un.FechaBaja" \
+              " FROM CFG_Unidad Un " \
+              " INNER JOIN CFG_Central C2 ON Un.IdCentral = C2.IdCentral " \
+              " INNER JOIN CFG_Provincia Pr ON C2.IdProvincia = Pr.IdProvincia " \
+              " WHERE UPPER(Pr.Nombre) = '{0}' " \
+              " AND '{1}' BETWEEN Un.FechaAlta " \
+              " AND isnull(Un.FechaBaja, '{1}')".format(provincia, str_ini)
+
+    df_cod_unidades = pd.read_sql(sql_str, con=gop_svr.conn)
+    if not df_cod_unidades.empty:
+        lst_unidades = list(df_cod_unidades["Codigo"])
+        df_gen = generacion_desde_sivo(lst_unidades, time_range)
+        return df_gen
+    else:
+        return pd.DataFrame()
+
+
+
+
+
+
 """
 FUNCIONES AUXILIARES:
 """
@@ -1227,6 +1564,36 @@ def time_last_30_m():
     return dt
 
 
+def tiempo_de_corte(corte_minutos):
+    dt = datetime.datetime.now()
+    m = dt.minute
+    dt = dt.replace(second=0, microsecond=0)
+    acc_m = 0
+    if m < corte_minutos:
+        dt = dt.replace(minute=corte_minutos)
+    else:
+        dt = dt.replace(minute=0)
+        for i in range(60):
+            dt += datetime.timedelta(minutes=corte_minutos)
+            acc_m += corte_minutos
+            if m < acc_m:
+                break
+    return dt
+
+
+def convert_str_to_time(str_time, ls_format=None):
+    if ls_format is None:
+        ls_format = ["%Y-%m-%d", "%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S"]
+    dt_resp = dt.datetime.now()
+    for fmt in ls_format:
+        try:
+            dt_resp = dt.datetime.strptime(str_time, fmt)
+            break
+        except ValueError:
+            pass
+    return dt_resp
+
+
 def test():
     # other_generation_detail_now()
     # generation_energy_by_tech_now()
@@ -1243,8 +1610,10 @@ def test():
     # detalle_generacion_potencia("Total")
     # informacion_sankey_generacion_demanda()
     # demanda_nacional("2018-08-21", "2018-08-22")
-    tag = obtener_tag_name_por_descripcion("Demanda Nacional")
-
+    # tag = obtener_tag_name_por_descripcion("Demanda Nacional")
+    # tendencia_demanda_por_provincia("Pichincha", pi_svr.time_range("2018-10-09", "2018-10-10"))
+    # generacion_por_provincia("Pichincha")
+    informacion_sankey_generacion_demanda_por_provincia("Azuay")
 
 if __name__ == "__main__":
     perform_test = True

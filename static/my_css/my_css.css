@@ -242,17 +242,18 @@ svg{
 
 /* The Close Button */
 .close {
-    color: #ff1a1a;
+    color: black;
     float: right;
     font-size: 28px;
     font-weight: bold;
     opacity: 0.9;
+    -webkit-text-stroke: 1px #ffffff;
 }
 
 .close:hover,
 .close:focus {
-    color: black;
-    text-decoration: none;
+    color: #ff1a1a;
+    text-decoration: #f58a1e;
     cursor: pointer;
     opacity: 0.9;
 }
@@ -260,4 +261,16 @@ svg{
 .modalTitle{
     color: black;
     font-size: 24pt;
+}
+
+.modal-header-fine {
+    padding: 2px 16px;
+    background-color: #5cb85c;
+    color: white;
+}
+
+.modal-header-warning {
+    padding: 2px 16px;
+    background-color: #ee4f34;
+    color: white;
 }

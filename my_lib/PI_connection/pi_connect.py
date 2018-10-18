@@ -49,6 +49,11 @@ class PIserver:
         :return: AFTimeRange
         """
         timerange = None
+        if isinstance(ini_time, datetime.datetime):
+            ini_time = ini_time.strftime("%Y-%m-%d %H:%M:%S")
+        if isinstance(end_time, datetime.datetime):
+            end_time = end_time.strftime("%Y-%m-%d %H:%M:%S")
+
         try:
             timerange = AFTimeRange(ini_time, end_time)
         except Exception as e:
@@ -76,6 +81,17 @@ class PIserver:
         str_td = dt.strftime("%Y-%m-%d")
         dt_fin = dt.date() + datetime.timedelta(days=1)
         return AFTimeRange(str_td, dt_fin.strftime("%Y-%m-%d"))
+
+    @staticmethod
+    def start_and_time_of(time_range):
+        """
+        Gets the Start and End time of a AFTimeRange
+        :param time_range:  AFTimeRange(str_ini_date, str_end_date)
+        :return: Start and End time in format: yyyy-mm-dd HH:MM:SS
+        """
+        assert isinstance(time_range, AFTimeRange)
+        return time_range.StartTime.ToString("yyyy-MM-dd HH:mm:s"), time_range.EndTime.ToString("yyyy-MM-dd HH:mm:s")
+
 
     @staticmethod
     def span(delta_time):

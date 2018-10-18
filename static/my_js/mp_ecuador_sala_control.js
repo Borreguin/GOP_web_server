@@ -42,17 +42,17 @@ function seleccionar_mapa(title){
         queue()
               // .defer(draw_ecuador_only, 'main_grid')
               .defer(d3.json, '/cal/tendencia_demanda_por_provincia/' + title )
-              .defer(d3.json, '/cal/informacion_sankey_generacion_demanda_nivel_empresarial/' + stamp_time)
+              .defer(d3.json, '/cal/informacion_sankey_generacion_demanda_por_provincia/'+ title +'&'+ stamp_time)
               .defer(d3.json, '/cal/demanda_por_provincia/' + title)
               .await(function(error, js_dm_emp, js_sankey, js_barras){
                     if(error) throw error;
                     // ec_map = pintar_por_empresas(ec_map);
-                    dw_sankey = plot_sankey(error, js_sankey);
+                    dw_sankey = plot_sankey(error, js_sankey, title);
                     n_c = Object.keys(js_dm_emp).length;
                     let colors = color_band.slice(0,n_c);
                     st1 = update_stacked_trend(error, js_dm_emp, colors, title + " [MW]");
                     st2 = update_colored_bars(error, js_barras, colors);
-                    if(dw_sankey != undefined && st1 != undefined && st2 != undefined){
+                    if(dw_sankey !== undefined && st1 !== undefined && st2 !== undefined){
                         mover_regiones();
                         stop_all();
                     }

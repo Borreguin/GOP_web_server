@@ -17,23 +17,28 @@ def temporal_path():
     return root_path() + 'static\\temp\\'
 
 
-def retrieve_file(file_name, dt_deltatime):
+def retrieve_file(file_name, eval_time=None):
     file_path = temporal_path() + file_name
     file_path = valid_path(file_path)
-    if os.path.exists(file_path) and isinstance(dt_deltatime, dt.timedelta):
 
-        modified_time = dt.datetime.fromtimestamp(os.path.getmtime(file_path))
-        available_time = modified_time + dt_deltatime
+    if eval_time is None and os.path.exists(file_path):
+        # eval_time = dt.datetime.fromtimestamp(os.path.getmtime(file_path))
+        eval_time = dt.datetime.now()
 
-        if dt.datetime.now() < available_time:
-            # Getting back the objects:
-            with open(file_path, 'rb') as f:
-                resp = pickle.load(f)
+    if isinstance(eval_time, dt.timedelta):
+        return SyntaxError
 
-            # Clear the Temp path if is full:
-            empty_temp_files(limit_number_of_files=50)
-            return resp
+    if os.path.exists(file_path) and isinstance(eval_time, dt.datetime):
 
+        with open(file_path, 'rb') as f:
+            resp = pickle.load(f)
+
+        list_objects = resp["list_objects"]
+        valid_range = resp["valid_range"]
+
+        if valid_range[0] < eval_time < valid_range[1]:
+            empty_temp_files(100)
+            return list_objects
         else:
             return None
 
@@ -48,16 +53,21 @@ def empty_temp_files(limit_number_of_files):
             os.remove(os.path.join(temporal_path(), f))
 
 
-
-
-def save_variables(file_name, list_objects):
+def save_variables(file_name, list_objects, valid_range=None, dt_delta=None):
 
     file_path = temporal_path() + file_name
     file_path = valid_path(file_path)
+    dt_n = dt.datetime.now()
+    if valid_range is None and dt_delta is None:
+        valid_range = [dt_n, dt_n + dt.timedelta(minutes=2)]
+    elif isinstance(dt_delta, dt.timedelta):
+        valid_range = [dt_n, dt_n + dt_delta]
+
     try:
         # Saving the objects:
         with open(file_path, 'wb') as f:
-            pickle.dump(list_objects, f)
+            to_dump = dict(list_objects=list_objects, valid_range=valid_range)
+            pickle.dump(to_dump, f)
         return True
     except Exception as e:
         print(e)

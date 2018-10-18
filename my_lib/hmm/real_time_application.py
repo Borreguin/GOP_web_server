@@ -573,7 +573,7 @@ def traces_expected_area_and_real_time(df_expected_area):
             x=df_expected_area.index,
             y=df_expected_area[column].round(1),
             name=names[column],
-            mode='line',
+            mode='lines',
             fill=fill[column],
             # legendgroup='group1',
             showlegend=show_legend[column],
@@ -598,7 +598,7 @@ def trace_df_std(df_std):
             y=df_std.round(1) * dict_to_draw[f],
             # legendgroup='group2',
             name="Desviación estándar",
-            mode='line',
+            mode='lines',
             fill='tozeroy',
             xaxis='x',
             yaxis='y2',
@@ -624,7 +624,7 @@ def trace_df_despacho(df_despacho):
             x=df_despacho.index,
             y=df_despacho[column].round(1),
             name=column,
-            mode='line',
+            mode='lines',
             # legendgroup='group1',
             line=dict(
                 width=3,
@@ -682,7 +682,7 @@ def get_layout(style):
             gridcolor='gray'
         ),
         yaxis2=dict(
-            domain=[0.75, 1.2],
+            domain=[0.75, 1],
             tickcolor=tick_color[style],
             gridcolor='rgba(230, 230, 230, 1)'
         ),

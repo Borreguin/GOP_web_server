@@ -4,6 +4,58 @@
     <div id="div_demanda" style="height: 88%">
     </div>
 
+        <!-- The Modal -->
+    <div id="subir_re_despacho" class="modal">
+        <!-- Modal content -->
+        <div id="modal_menu" class="modal-content" style="height: 450px">
+            <div class="modal-header-warning">
+                <span class="close">&times;</span>
+                <h4>Desea cargar y/o actualizar el re/despacho programado?</h4>
+            </div>
+
+            <div style="padding: 20px"> Este menú le permitirá actualizar el re/despacho programado en la base de datos de SIVO.
+                Los siguientes archivos serán considerados para el efecto:
+            </div>
+
+            <div>
+                <table class="table" style="width:60%; padding: 5px; border-style: solid; border-width: 1px; margin: auto" >
+                    <thead >
+                        <tr>
+                          <th class="info" style="border-style: solid; border-width: 1px"> Despacho </th>
+                          <th class="info"> Redespacho </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 5px; border-style: solid; border-width: 1px">
+                                M:\Despacho Prog\Pred_YYMMDD.xlsx</td>
+                            <td style="padding: 5px; border-style: solid; border-width: 1px">
+                                M:\Redespachos\A Ejecutarse\R#_YYYY-MM-DD.xls</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="padding: 20px">
+                Seleccione fecha (yyyy-mm-dd): <input id="datepicker" style="width: 150px" onchange="actualizar_fecha_despacho()">
+            </div>
+
+            <div style="padding: 10px; position: relative; left: 30%;"> Desea cargar los siguientes archivos:
+                <div style="padding-left: 30px"> - Despacho:  &nbsp &nbsp &nbsp &nbsp <a id="file_1" style="font-weight: bold"> file 1</a>  </div>
+                <div style="padding-left: 30px"> - Redespacho: &nbsp &nbsp <a id="file_2" style="font-weight: bold"> file 2</a>  </div>
+            </div>
+
+            <div style="padding: 20px; text-align: center ">
+                <button type="button" class="btn btn-warning" onclick="cargar_re_despacho();">Cargar/Actualizar Re/Despacho </button>
+            </div>
+
+            <div id="title_result" style="color: #396891; margin: auto; text-align: center"> </div>
+            <div id="msg_result" style="color: #5a585b; margin: auto; height: 310px; overflow: scroll"> </div>
+
+        </div>
+    </div>
+
+
     <div id="div_table" style="height: 10%; width: 100%">
 
         <table class="table" style="width:92%; padding: 0px; float: left" >
@@ -38,8 +90,11 @@
           </tbody>
         </table>
         <div style="width: 6%; float: left; margin-left: 15px">
-            <a id="download_icon" href="#" class="btn btn-default btn-lg" style="font-size: small">
+            <a id="download_icon" href="#" class="btn btn-default btn-lg" style="font-size: small; width: 120px">
              <span class="glyphicon glyphicon-file"></span> Descargar
+            </a>
+            <a id="update_icon" class="btn btn-default btn-lg" style="font-size: small; width: 120px">
+             <span class="glyphicon glyphicon-open"></span> Actualizar
             </a>
         </div>
     </div>
@@ -140,11 +195,15 @@
     <script type="text/javascript" src="/static/js_lib/d3.v3.5.17.js"></script>
     <!-- Herramienta para actualizar valores en tiempo real -->
     <script type="text/javascript" src="/static/my_js/pool.js"></script>
+    <script type="text/javascript" src="/static/js_lib/bootstrap-datepicker/js/bootstrap-datepicker.js"></script>
+    <script type="text/javascript" src="/static/js_lib/bootstrap-datepicker/js/locales/bootstrap-datepicker.es.js"></script>
+    <link rel="stylesheet" href="/static/js_lib/bootstrap-datepicker/css/bootstrap-datepicker3.css" >
 
     <script>
         let description = "{{ titles.sbt1 | safe }}";
         let date = "{{ date | safe }}";
         let hour = "{{ hour | safe }}";
+
     </script>
 {% endblock %}
 
@@ -160,6 +219,19 @@
         let graph_data_global;
         let date_arg;
         let hour_arg;
+
+
+        // Selector de fecha
+        $('#datepicker').datepicker({
+            todayBtn: "linked",
+            language: "es",
+            autoclose: true,
+            todayHighlight: true,
+            toggleActive: true,
+            format: "yyyy-mm-dd",
+            orientation: "bottom right"
+        });
+
         function updating_all() {
             update_time_with("fecha_actual",ct_date);
 
@@ -251,6 +323,7 @@
             (document,'script','weatherwidget-io-js');
         }
 
+        actualizar_fecha_despacho();
         updating_all();
 
         let show=true;
@@ -282,5 +355,71 @@
             //updating_all();
             show = !show;
         }
+        // Código Modal:
+        // Get the modal
+        var modal = document.getElementById('subir_re_despacho');
+
+        // Get the button that opens the modal
+        var btn = document.getElementById("update_icon");
+
+        // Get the <span> element that closes the modal
+        var span = document.getElementsByClassName("close")[0];
+
+        // When the user clicks on the button, open the modal
+        btn.onclick = function() {
+            modal.style.display = "block";
+        };
+
+        // When the user clicks on <span> (x), close the modal
+        span.onclick = function() {
+            modal.style.display = "none";
+        };
+
+        // When the user clicks anywhere outside of the modal, close it
+        window.onclick = function(event) {
+            if (event.target === modal) {
+                modal.style.display = "none";
+            }
+        };
+
+    function actualizar_fecha_despacho() {
+        let item = d3.select("#datepicker");
+        let f_dp = item.property("value");
+        if(f_dp === ""){
+            f_dp = new Date();
+        }else{
+            f_dp = new Date(f_dp + "T00:00:00-05:00");
+        }
+        item.property("value", to_yyyy_mm_dd(f_dp));
+
+        let file_1 = "M:\\Despacho Prog\\Pred_" + f_dp.getFullYear().toString().substr(-2) +
+                ("0" + (f_dp.getMonth() + 1)).slice(-2) + ("0" + f_dp.getDate()).slice(-2) + ".xlsx";
+        let file_2 =  "M:\\Redespachos\\A Ejecutarse\R#_" + to_yyyy_mm_dd(f_dp) + ".xls";
+
+        d3.select('#file_1').text(file_1);
+        d3.select('#file_2').text(file_2);
+    }
+
+
+    function cargar_re_despacho() {
+        let item = d3.select("#datepicker");
+        let f_dp = item.property("value");
+        d3.select("#modal_menu").style("height", "750px");
+        d3.select("#title_result").text("Procesando...");
+        d3.select("msg_result").text("Espere por favor");
+
+         queue()
+          .defer(d3.json, '/cargar_re_despacho/' + f_dp)
+          .await(function(error, result){
+                if(error) throw error;
+                d3.select("#title_result").text(result.title);
+                d3.select("msg_result").text(result.msgs);
+          });
+    }
+
+
+
+
+
     </script>
 {% endblock %}
