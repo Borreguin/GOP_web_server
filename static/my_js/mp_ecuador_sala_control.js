@@ -1,3 +1,4 @@
+let time_minutes = 6.5;
 main(selected_level);
 
 function main(detail){
@@ -22,7 +23,7 @@ function main(detail){
         nivel_provincial();
         // window.location.replace("/map/empresarial");
     }
-
+    setTimeout(function () { main(detail);}, time_minutes*1000*60);
 }
 
 function seleccionar_mapa(title){

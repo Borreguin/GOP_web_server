@@ -53,18 +53,33 @@
     <div id="panel_flotante_superior">
         <div id="panel_1"  class="float_container" style="top: 7.5%; left: 1%; width: 20em; height: 6em">
             <span id="id_note" style="font-size: 10pt; position: relative; left:101%"> *. </span>
-            <div class="float_title_white" style="width: 100%"> DEMANDA NACIONAL </div>
-            <div class="float_value_white" style="width: 100%"> <span id="demanda"> ----- </span>  MW</div>
+            <a class="float_title_white" style="width: 100%"
+            title="Click para ver el pronóstico de la demanda (versión PC)"
+            href="/pronostico/demanda-nacional">
+                DEMANDA NACIONAL </a>
+            <a class="float_value_white" style="width: 100%"
+                title="Click para ver el pronóstico de la demanda (versión videowall)"
+                href="/pronostico-videowall/demanda-nacional"
+            >
+                <span id="demanda"> ----- </span>
+                MW</a>
         </div>
 
         <div id="panel_2"  class="float_container" style="top: 20%; left: 1%; width: 20em; height: 6em">
-          <div class="float_title_white" style="width: 100%"> GENERACIÓN TOTAL </div>
-            <div class="float_value_white" style="width: 100%"> <span id="produccion_mw"> ------ </span> MW</div>
+          <a id="detalle_generacion" class="float_title_white" style="width: 100%"
+            title="Click para ver listado de generación en línea"
+          > GENERACIÓN TOTAL </a>
+            <div class="float_value_white" style="width: 100%"> <span id="gen_total_mw"> ------ </span> MW</div>
         </div>
 
         <div id="panel_3"  class="float_container" style="top: 20%; left: 24em; width: 20em; height: 6em">
-          <div class="float_title_white" style="width: 100%"> RESERVA </div>
-            <div class="float_value_white" style="width: 100%"> <span id="reserva"> ------ </span> MW</div>
+          <a id="link_indisponibilidad" class="float_title_white"
+             style="width: 100%" title="Click para ver novedades de indisponibilidad"
+          > RESERVA RODANTE</a>
+            <a class="float_value_white" style="width: 100%"
+               href="/tendencia_reserva"
+            >
+                <span id="reserva"> ------ </span> MW</a>
         </div>
 
         <div id="panel_4"  class="float_container" style="top: 30%; left: 1%; width: 20em; height: 6em">
@@ -153,7 +168,37 @@
         if (event.target == modal) {
             modal.style.display = "none";
         }
-    }
+    };
+    timestamp = time_now();
+    url_indisp = "/tabla?url=/cal/detalle_de_indisponibilidad&param=" + timestamp + '&' + timestamp +
+        "&config={'title':'Disponibilidad de unidades', " +
+        " 'orden':['EVENTO_FECHA', 'EMPRESA', 'CENTRAL', 'ID', 'POT_EFECTIVA', 'POT_DISPONIBLE', 'DESCRIPCION' ], " +
+        " 'nombres':['ÚLTIMO EVENTO', 'EMPRESA', 'CENTRAL', 'CODIGO UNIDAD', 'POT EFECTIVA', 'POT DISPONIBLE', 'DESCRIPCIÓN' ], " +
+        " 'T':1, 'I':1}";
+    d3.select("#link_indisponibilidad")
+        .on('click', function(d) {
+            window.open(
+            url_indisp,
+                '_blank', 'toolbar=no, location=yes, status=no, menubar=no,scrollbars=yes,'
+                               + ' resizable=yes, width=1100px, height=850px'
+            );
+        });
+
+    url_generacion = "/tabla?url=/cal/detalle_generacion_potencia&param=Total&" + timestamp +
+        "&config={'title':'Detalle de Generación en línea', " +
+        " 'orden':['Central', 'U_Codigo', 'Unidad' ,'Tecnología', 'Potencia', 'Fecha'], " +
+        " 'nombres':['Central', 'Codigo Unidad', 'Unidad', 'Tecnología', 'Potencia (MW)', 'Fecha']}"
+
+    d3.select("#detalle_generacion")
+        .on('click', function(d) {
+            window.open(
+            url_generacion,
+                '_blank', 'toolbar=no, location=no, status=no, menubar=no,scrollbars=yes,'
+                               + ' resizable=yes, width=1100px, height=550px'
+            );
+        });
+
+
 </script>
 
 

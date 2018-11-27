@@ -18,6 +18,7 @@ class GOPserver:
     def __init__(self, ):
         self.conn = get_conn()
         self.engine = get_engine()
+        self.bosni_conn = get_bosni_conn()
 
     def import_export_by_time(self, str_ini_date, str_fin_date, type_e="I"):
         """
@@ -68,8 +69,29 @@ def get_conn():
         path = "./my_lib/GOP_connection/st.pkl"
         with open(path, 'rb') as pickle_file:
             ps = pickle.load(pickle_file)
-    return pymssql.connect(server="QCITBVWBDCL3", user="readuser", password=decrypt(ps), port=1433)     #Produccion
+    return pymssql.connect(server="QCITBVWBDCL3", user="readuser", password=decrypt(ps),
+                           port=1433, autocommit=True)     #Produccion
     # return pymssql.connect(server="DOP-WKSTAADO", user="readuser", password=decrypt(ps), port=1433)   # prueba
+
+
+def get_bosni_conn():
+
+    try:
+        path = script_path + '\\' + "st.pkl"
+        with open(path, 'rb') as pickle_file:
+            ps = pickle.load(pickle_file)
+    except Exception as e:
+        print(e)
+        path = "./my_lib/GOP_connection/st.pkl"
+        with open(path, 'rb') as pickle_file:
+            ps = pickle.load(pickle_file)
+    # Produccion
+    return pymssql.connect(server="QCITBVWBDCL3", user="readuser", password=decrypt(ps),
+                           port=1433, database="BOSNI", autocommit=True)
+    # prueba
+    # return pymssql.connect(server="DOP-WKSTAADO", user="readuser", password=decrypt(ps), port=1433, database="BOSNI")
+
+
 
 
 def get_engine():

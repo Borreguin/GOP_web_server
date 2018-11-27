@@ -127,6 +127,11 @@ format_w_spaces = function (d) {
     return formatNumber(d).replace(/,/g, ' ').replace(/\./, ',');
 };
 
+function time_now() {
+    dt = new Date();
+    return to_yyyy_mm_dd_hh_mm_ss(dt);
+}
+
 function stop_all(){
     try {
         window.stop();
@@ -150,6 +155,19 @@ function stackedArea(traces) {
 	return traces;
 }
 
+function transpose_data(js_data, labels){
+
+    let ds = {};
+    for(let ix in labels){ds[labels[ix]] = [];}
+    if(js_data[0] !== undefined) {
+        js_data.forEach(function (e) {
+            for (let ix in labels) {
+                ds[labels[ix]].push(e[labels[ix]]);
+            }
+        });
+    }
+    return ds;
+}
 
 function to_yyyy_mm_dd_hh_mm_ss(ct){
 
@@ -162,6 +180,27 @@ function to_yyyy_mm_dd(ct){
     return ct.getFullYear() + "-" + ("0" + (ct.getMonth() + 1)).slice(-2) + "-" + ("0" + ct.getDate()).slice(-2);
 }
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function transponer(js_object){
+
+    let js_keys = Object.keys(js_object);
+    let indexs = Object.keys(js_object[js_keys[0]]);
+    let t_data = [];
+
+    for(let idx in indexs){
+        let register = {};
+        register["ID"] = Object.keys(js_object[js_keys[0]])[idx];
+        for(let i in js_keys){
+            register[js_keys[i]] = js_object[js_keys[i]][indexs[idx]];
+        }
+        t_data.push(register)
+    }
+
+    return t_data;
+}
 
 /*
 queue()

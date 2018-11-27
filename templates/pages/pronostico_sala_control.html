@@ -1,0 +1,37 @@
+{% extends "keen_io_dashboard/layouts/hero-twice_90_10_black/layout.html" %}
+
+{% block grid_1 %}
+    <div id="div_demanda" style="height: 99.5%"></div>
+{% endblock %}
+
+{% block grid_2 %}
+    <div >
+
+    </div>
+{% endblock %}
+
+{% block head_scripts %}
+    <!-- css icons --->
+    <!--link rel="stylesheet" type="text/css" href="/static/js_lib/font-awesome.min.css" /-->
+
+    <!--link rel="stylesheet" href="/static/js_lib/font-awesome.min.css" -->
+     <!-- Plotly.js -->
+    <script type="text/javascript" src="/static/js_lib/plotly-latest.min.js"></script>
+    <script type="text/javascript" src="/static/js_lib/d3.v3.5.17.js"></script>
+    <!-- Herramienta para actualizar valores en tiempo real -->
+    <script type="text/javascript" src="/static/my_js/pool.js"></script>
+    <script type="text/javascript" src="/static/js_lib/bootstrap-datepicker/js/bootstrap-datepicker.js"></script>
+    <script type="text/javascript" src="/static/js_lib/bootstrap-datepicker/js/locales/bootstrap-datepicker.es.js"></script>
+    <link rel="stylesheet" href="/static/js_lib/bootstrap-datepicker/css/bootstrap-datepicker3.css" >
+
+    <script>
+        let description = "{{ titles.sbt1 | safe }}";
+        let date = "{{ date | safe }}";
+        let hour = "{{ hour | safe }}";
+
+    </script>
+{% endblock %}
+
+{% block body_scripts %}
+    <script type="text/javascript" src="/static/my_js/pronostico_sala_control.js"></script>
+{% endblock %}

@@ -1,0 +1,46 @@
+
+.node {
+  font: 10px sans-serif;
+}
+
+.link {
+  stroke: green;
+  stroke-opacity: 1;
+  stroke-width: 1.5px;
+  fill: none;
+
+}
+
+.link_selected {
+  stroke: green;
+  stroke-opacity: 1;
+  stroke-width: 5px;
+  fill: none;
+
+}
+
+.group {
+	font: 13px sans-serif;
+}
+
+.group_selected {
+	font: 20px sans-serif;
+	fill: #00ff00;
+}
+
+
+.arc_group
+{
+	font: 20px sans-serif;
+	fill: yellow;
+}
+
+.black_background{
+	background-color:black;
+	fill:white
+}
+
+.white_background{
+	background-color:white;
+	fill:black
+}

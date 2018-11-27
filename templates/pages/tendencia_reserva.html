@@ -1,0 +1,47 @@
+{% extends "layouts/head_menu_navigation.html" %}
+
+
+
+{% block head_scripts %}
+    <script type="text/javascript" src="/static/js_lib/d3.v3.5.17.js"></script>
+    <script type="text/javascript" src="/static/js_lib/tabla/jquery.dataTables.min.js"></script>
+    <script type="text/javascript" src="/static/js_lib/queue.js"></script>
+    <script type="text/javascript" src="/static/js_lib/tabla/makeTable.js"></script>
+    <script type="text/javascript" src="/static/my_js/my_table.js"></script>
+    <link rel="stylesheet" href="/static/css_lib/jquery.dataTables.min.css" >
+    <!-- datepicker library -->
+    <script type="text/javascript" src="/static/js_lib/bootstrap-datepicker/js/bootstrap-datepicker.js"></script>
+    <script type="text/javascript" src="/static/js_lib/bootstrap-datepicker/js/locales/bootstrap-datepicker.es.js"></script>
+    <link rel="stylesheet" href="/static/js_lib/bootstrap-datepicker/css/bootstrap-datepicker3.css" >
+    <!-- Plotly.js -->
+    <script type="text/javascript" src="/static/js_lib/plotly-latest.min.js"></script>
+{% endblock %}
+
+
+{% block content %}
+
+    <div class="container-fluid" style="height: 99%" xmlns="http://www.w3.org/1999/html">
+        <div id="content" class="col-lg-12" style="height: 100%; padding-right: 0">
+            <div style="width: 350px; height: 40px">
+                <div class="input-daterange input-group" id="datepicker" style="width: 250px">
+                    <input id="ini_date" type="text" class="input-sm form-control" name="start" >
+                    <span class="input-group-addon"> hasta </span>
+                    <input id="end_date" type="text" class="input-sm form-control" name="end" >
+                </div>
+                <button onclick="actualizar()" style="position: absolute; top: 5px; left: 260px;"> Aplicar </button>
+            </div>
+            <div id="info" style="position: absolute; left: 350px ; top: 5px" > Espere por favor, la gráfica puede tomar varios minutos dependiendo del periodo de consulta </div>
+            <div style="height: 100%"  id="grid_1">
+        </div>
+
+    </div>
+
+
+    </div>
+
+{% endblock %}
+
+
+{% block body_scripts %}
+    <script type="text/javascript" src="/static/my_js/tendencia_reserva.js"> </script>
+{% endblock %}

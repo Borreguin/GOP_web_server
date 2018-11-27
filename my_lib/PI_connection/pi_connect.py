@@ -40,6 +40,19 @@ class PIserver:
             print("[pi_connect] [{0}] not found".format(tag_name))
         return pt
 
+    def find_PI_point_list(self, list_tag_name):
+        """
+        Find a list of PI_point in PIserver
+        :param list_tag_name: name of the tag
+        :return: PIpoint list
+        """
+        assert isinstance(list_tag_name, list)
+        pi_point_list = list()
+        for tag in list_tag_name:
+            pi_point = PI_point(self, tag_name=tag)
+            pi_point_list.append(pi_point)
+        return pi_point_list
+
     @staticmethod
     def time_range(ini_time, end_time):
         """
@@ -92,7 +105,6 @@ class PIserver:
         assert isinstance(time_range, AFTimeRange)
         return time_range.StartTime.ToString("yyyy-MM-dd HH:mm:s"), time_range.EndTime.ToString("yyyy-MM-dd HH:mm:s")
 
-
     @staticmethod
     def span(delta_time):
         """
@@ -134,7 +146,7 @@ class PIserver:
 
         for tag in tag_list:
             try:
-                pt = PI_point(self,tag)
+                pt = PI_point(self, tag)
                 df_result[tag] = pt.interpolated_value(time)
             except Exception as e:
                 print(e)
@@ -235,7 +247,7 @@ class PI_point:
 
     def interpolated_value(self, timestamp):
 
-        if isinstance(timestamp,datetime.datetime):
+        if isinstance(timestamp, datetime.datetime):
             timestamp = str(timestamp)
 
         try:
@@ -247,7 +259,6 @@ class PI_point:
 
         return self.pt.InterpolatedValue(time).Value
 
-
     def snapshot(self):
         return self.pt.Snapshot()
 
@@ -258,6 +269,13 @@ class PI_point:
         summaries_list = self.summaries(time_range, span, AFSummaryTypes.Average)
         df = pd.DataFrame()
         for summary in summaries_list:
+            df = to_df(summary.Value, tag=self.tag_name)
+        return df
+
+    def max(self, time_range, span):
+        sumaries_list = self.summaries(time_range, span, AFSummaryTypes.Maximum)
+        df = pd.DataFrame()
+        for summary in sumaries_list:
             df = to_df(summary.Value, tag=self.tag_name)
         return df
 
@@ -294,8 +312,11 @@ def test():
     df1 = pt.interpolated(time_range, span)
     df2 = pt.plot_values(time_range, 200)
     df3 = pt.recorded_values(time_range2)
+    print(df1, df2, df3)
     value1 = pt.snapshot()
+    print("value1:" + str(value1))
     value2 = pt.current_value()
+    print("value2:" + str(value2))
 
     tag_list = ['JAMONDIN230POMAS_1_P.LINEA_ICC.AV', 'POMASQUI230JAMON_1_P.LINEA_RDV.AV',
                 'JAMONDIN230POMAS_1_P.LINEA_ICC.AQ', 'POMASQUI230JAMON_1_P.LINEA_RDV.AQ']
@@ -305,14 +326,17 @@ def test():
     df3.plot()
 
     df_average = pt.average(time_range, span)
+    span = pi_svr.span("60m")
+    df_max = pt.max(time_range, span)
     print(df_average)
+    print(df_max)
     # from my_lib.holidays import holidays as hl
     # rs = hl.get_holiday_dates_as_df()
     # print(rs)
 
 
 if __name__ == "__main__":
-    perform_test = False
+    perform_test = True
     if perform_test:
         test()
 

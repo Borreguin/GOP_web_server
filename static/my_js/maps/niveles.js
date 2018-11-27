@@ -23,10 +23,12 @@ function nivel_global(){
           .defer(d3.json, '/cal/demanda_nacional_desde_sivo')
           .defer(d3.json, '/cal/informacion_sankey_generacion_demanda')
           .defer(d3.json, '/cal/maxima_demanda_nacional')
-          .await(function(error, ec_map, js_barras, js_dm, js_sankey, js_max){
+          .defer(d3.json, '/cal/reserva_de_generacion/' + stamp_time)
+          .await(function(error, ec_map, js_barras, js_dm, js_sankey, js_max, js_reserva){
                 if(error) throw error;
                 plot_sankey(error, js_sankey, "Demanda Nacional");
                 update_barras_demanda(error, js_barras);
+                update_reserva(js_reserva);
                 let mx_date = js_max[0]["Fecha"];
                 queue()
                     .defer(d3.json, '/cal/demanda_nacional_desde_sivo/' + mx_date)
@@ -44,21 +46,23 @@ function nivel_global(){
 function nivel_regional() {
 
     last_time = time_last_30_min();
-    let stamp_time = to_yyyy_mm_dd_hh_mm_ss(last_time)
+    let stamp_time = to_yyyy_mm_dd_hh_mm_ss(last_time);
 
     queue()
           .defer(draw_ecuador_only, 'main_grid')
           .defer(d3.json, '/cal/tendencia_demanda_nacional_por_regiones')
           .defer(d3.json, '/cal/informacion_sankey_generacion_demanda_regional/' + stamp_time)
           .defer(d3.json, '/cal/demanda_regiones/' + stamp_time)
-          .await(function(error, ec_map, js_dm_reg, js_sankey, js_barras){
+          .defer(d3.json, '/cal/reserva_de_generacion/' + stamp_time)
+          .await(function(error, ec_map, js_dm_reg, js_sankey, js_barras, js_reserva){
                 if(error) throw error;
                 ec_map = pintar_regiones_del_ecuador(ec_map);
+                update_reserva(js_reserva);
                 dw_sankey = plot_sankey(error, js_sankey, "Demanda Nacional");
                 let colors = {"Sierra": "#0e283b" , "Costa": "rgba(100, 10, 10, 1)", "Oriente": "rgba(0, 74, 86, 1)"};
                 st1 = update_stacked_trend(error, js_dm_reg, colors, "DEMANDA NACIONAL [MW]");
                 st2 = update_colored_bars(error, js_barras, colors);
-                if(ec_map !== undefined && dw_sankey !== undefined && st1 !== undefined && st2 != undefined){
+                if(ec_map !== undefined && dw_sankey !== undefined && st1 !== undefined && st2 !== undefined){
                     mover_regiones();
                     stop_all();
                 }
@@ -77,9 +81,11 @@ function nivel_empresarial() {
           .defer(d3.json, '/cal/tendencia_demanda_nacional_por_nivel_empresarial')
           .defer(d3.json, '/cal/informacion_sankey_generacion_demanda_nivel_empresarial/' + stamp_time)
           .defer(d3.json, '/cal/demanda_por_nivel_empresarial/' + stamp_time)
-          .await(function(error, ec_map, js_dm_emp, js_sankey, js_barras){
+          .defer(d3.json, '/cal/reserva_de_generacion/' + stamp_time)
+          .await(function(error, ec_map, js_dm_emp, js_sankey, js_barras, js_reserva){
                 if(error) throw error;
                 ec_map = pintar_por_empresas(ec_map);
+                update_reserva(js_reserva);
                 dw_sankey = plot_sankey(error, js_sankey);
                 let colors = {"CNEL": "#64467d", "Empresas Eléctricas": "#4e93c5"};
                 st1 = update_stacked_trend(error, js_dm_emp, colors, "DEMANDA NACIONAL [MW]");
@@ -119,6 +125,22 @@ function nivel_provincial() {
 
 //------------------------------------------------------------------------------------------------------
 //  FUNCIONES AUXILIARES:
+
+function update_reserva(js_reserva) {
+    d3.select("#reserva")
+        .text(format_w_spaces(js_reserva["p_reserva"]))
+        .attr("title", function (d) {
+            return "Potencia efectiva............:\t" + format_w_spaces(js_reserva["p_efectiva"]) + " \t[MW] \n"
+                + "P. efectiva en línea.........:\t" + format_w_spaces(js_reserva["p_efectiva_linea"]) + " \t[MW] \n"
+                + "P. indisponible en línea.:\t" + format_w_spaces(js_reserva["p_indisponible_linea"]) + "   \t[MW] \n"
+                + "P. disponible en línea...:\t" + format_w_spaces(js_reserva["p_disponible_linea"]) + "   \t[MW] \n"
+                + "Generación total.............:\t" + format_w_spaces(js_reserva["p_generacion"]) + " \t[MW] \n"
+                + "Reserva..............................:\t" + format_w_spaces(js_reserva["p_reserva"]) + "   \t[MW] \n\n"
+                + "Click para ver la tendencia de la reserva rodante";
+        });
+
+}
+
 
 function plot_maxima_demanda(error, graph_data) {
 
@@ -481,8 +503,8 @@ function get_layout_bar( ){
 function update_stacked_trend(error, graph_data, color_ls, title) {
     let layout = get_default_layout();
     let n_traces = [];
-    let x, acc, last_value, ix=0;
-    let color_fill = {}
+    let x, acc, last_value, ix=0, max_value=0;
+    let color_fill = {};
 
     for(let id in graph_data){
         g_data = graph_data[id];
@@ -500,7 +522,11 @@ function update_stacked_trend(error, graph_data, color_ls, title) {
         else{
             let sum = acc.map(function (num, idx) {
                 if(y[idx] != null){return num + y[idx];}
-                else{return null;}
+                else if( num != null) {
+                    return num;
+                }else {
+                    return null;
+                }
             });
             acc = sum;
         }
@@ -510,6 +536,7 @@ function update_stacked_trend(error, graph_data, color_ls, title) {
             if(y[i] != null){
                 last_value = acc[i];
             }
+            if(max_value<last_value){ max_value=last_value;}
             text.push(t_i);
         }
         let trace = {
@@ -527,11 +554,25 @@ function update_stacked_trend(error, graph_data, color_ls, title) {
                 color: color_fill[id],
                 width: 1
             }
-        }
+        };
         n_traces.push(trace);
     }
     traces = stackedArea(n_traces);
     layout.annotations[0].text = title.toUpperCase();
+    layout.annotations[1] = {
+        xref: 'paper',
+        yref: 'y',
+        x: 1,
+        xanchor: 'right',
+        y: max_value*1.4,
+        yanchor: 'bottom',
+        text:  format_w_spaces(last_value) + " MW",
+        showarrow: false,
+        font: {
+          color: "#ff9600",
+          size: 16
+        }
+    };
 
     Plotly.react('grid_1', traces, layout);
 
@@ -666,19 +707,46 @@ function plot_sankey(error, sankey_data, title) {
         "Pérdidas"    :"rgba(255, 10, 10, 1)",
         "CNEL"        :"#64467d",
         "Empresas Eléctricas"    :"#4e93c5",
-        "S.N.I"       :"#a05e83",
+        "Desde S.N.I"       :"#a05e83",
+        "Hacia S.N.I"       :"#71a00d",
         "Gen. Inmersa"     :"#aeb316",
         "Gen. Local"       :"#5b5b5b"
     };
 
+    let ds_nodes = {
+        "Producción": "Total de Generación Nacional + Importación",
+        "Importación": "Total de Importación (desde Colombia y/o Perú)",
+        "Exportación": "Total de Exportación (hacia Colombia y/o Perú)",
+        "Demanda Nacional": "Demanda nacional en bornes de generación",
+        "Hidroeléctrica": "Total de Generación Hidroeléctrica",
+        "Termoeléctrica": "Total de Generación Termoeléctrica",
+        "No convencional": "Total de Generación No convencional",
+        "Costa"       :  "Total de demanda en la región Costa",
+        "Sierra"      : "Total de demanda en la región Sierra",
+        "Oriente"     : "Total de demanda en la región Oriente",
+        "Pérdidas"    : "Total aproximado de pérdidas en el S.N.I",
+        "CNEL"        :"Total de demanda en CNEL",
+        "Empresas Eléctricas"    :"Total de demanda en Empresas Eléctricas no pertenecientes a CNEL",
+        "Desde S.N.I"       :"Generación tomada desde el Sistema Nacional Interconectado",
+        "Hacia S.N.I"       :"Aporte hacia el Sistema Nacional Interconectado",
+        "Gen. Inmersa"     :"Generación evacuada por el sistema de distribución",
+        "Gen. Local"       :"Generación evacuada por el sistema de transmisión"
+    };
+
+    ds_nodes["Gen. " + title] = "Generación total en la provincia";
     // set generacion total, exportación, importación
-    let res = {produccion_mw : 0, importacion_mw: 0, exportacion_mw : 0};
+    let res = {gen_total_mw : 0, importacion_mw: 0, exportacion_mw : 0, demanda_mw: 0};
     let nodes = [];
     for(let id in sankey_data){
         let d = sankey_data[id];
-        if(d.target === "Producción"){  res.produccion_mw += d.value;}
-        if(d.source === "Importación"){ res.importacion_mw = d.value;}
-        if(d.target === "Exportación"){ res.exportacion_mw = d.value;}
+        if(d.target === "Producción"){  res.gen_total_mw += d.value;}
+        if(d.source === "Importación"){
+            res.importacion_mw = d.value;
+            res.gen_total_mw -= d.value;
+        }
+        if(d.target === "Exportación"){
+            res.exportacion_mw = d.value;
+        }
         if(!is_in(d.target,nodes)){
             nodes.push(d.target);
         }
@@ -715,7 +783,7 @@ function plot_sankey(error, sankey_data, title) {
 
 
 
-    dw_sankey = draw_sankey(sankey, svg_container, sankey_data, units, color_scale);
+    dw_sankey = draw_sankey(sankey, svg_container, sankey_data, units, color_scale, ds_nodes);
     return dw_sankey;
 }
 

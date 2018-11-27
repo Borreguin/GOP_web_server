@@ -10,6 +10,7 @@ from my_lib.PI_connection import pi_connect as osi
 from my_lib.temporal_files_manager import temporal_manager as tmp
 import datetime as dt
 import pandas as pd
+import numpy as np
 
 gop_svr = Gop.GOPserver()
 pi_svr = osi.PIserver()
@@ -36,9 +37,9 @@ hidraulica_list = ['Embalse', 'Pasada']
 system_path_file = "F:\DATO\Estad\System SIVO\SYSTEM yyyy.xlsx"
 empresas_file_config = "\static\\app_data\maps\empr_electricas_por_provincia.xlsx"
 
-
 yyyy_MM_dd_HH_mm_ss = "yyyy-MM-dd HH:mm:ss"
 yyyy_MM_dd = "yyyy-MM-dd"
+
 
 # ______________________________________________________________________________________________________________#
 
@@ -152,14 +153,17 @@ def generation_matrix(time_range):
     caso_fotovoltaica = True
     if caso_fotovoltaica:
         mask = df_gen["Tecnología"] == "Fotovoltaica"
-        if len(df_gen[mask]) > 0:
+        try:
             df_gen[mask].drop(inplace=True)
+        except ValueError:
+            pass
         tag_total_fotovoltaica = obtener_tag_name_por_descripcion("Generación Fotovoltaica")
         df_values = tag_total_fotovoltaica.interpolated(time_range, span_30)
         tag_name = tag_total_fotovoltaica.tag_name
         for idx in df_values.index:
-            df_aux = pd.DataFrame(["Fotovoltaica", "Total", "Fotovoltaica", tag_name, df_values.at[idx, tag_name], idx],
-                                  index=["Central", "Unidad", "Tecnología", "TAG", "Potencia", "Fecha"])
+            df_aux = pd.DataFrame(
+                ["Fotovoltaica", "Total", "Fotovoltaica", tag_name, df_values.at[idx, tag_name], idx, "FOTO-TOTAL"],
+                index=["Central", "Unidad", "Tecnología", "TAG", "Potencia", "Fecha", "U_Codigo"])
             df_gen = df_gen.append(df_aux.T, ignore_index=True)
 
     df_gen["Fecha"] = [f._repr_base for f in df_gen["Fecha"]]
@@ -499,14 +503,14 @@ def demanda_nacional_desde_sivo(ini_date=None, fin_date=None):
     df_importacion = importacion_desde_sivo(time_range)
     if df_importacion.empty:
         df_importacion = intercambio_programado_importacion(time_range)
-        df_importacion =df_importacion["Importación"]
+        df_importacion = df_importacion["Importación"]
     else:
         df_importacion = df_importacion.groupby(["Timestamp"])["MW"].sum()
 
     df_exportacion = exportacion_desde_sivo(time_range)
     if df_exportacion.empty:
         df_exportacion = intercambio_programado_exportacion(time_range)
-        df_exportacion =df_exportacion["Exportación"]
+        df_exportacion = df_exportacion["Exportación"]
     else:
         df_exportacion = df_exportacion.groupby(["Timestamp"])["MW"].sum()
 
@@ -518,7 +522,6 @@ def demanda_nacional_desde_sivo(ini_date=None, fin_date=None):
 
 
 def importacion_desde_sivo(time_range_or_ini_time=None, end_time=None):
-
     if time_range_or_ini_time is None and end_time is None:
         time_range_or_ini_time = pi_svr.time_range_for_today_all_day
     elif isinstance(time_range_or_ini_time, str):
@@ -549,7 +552,6 @@ def importacion_desde_sivo(time_range_or_ini_time=None, end_time=None):
 
 
 def exportacion_desde_sivo(time_range_or_ini_time=None, end_time=None):
-
     if time_range_or_ini_time is None and end_time is None:
         time_range_or_ini_time = pi_svr.time_range_for_today_all_day
     elif isinstance(time_range_or_ini_time, str):
@@ -863,7 +865,6 @@ def obtener_tag_name_por_descripcion(descripcion):
 
 
 def informacion_sankey_generacion_demanda(timestamp=None):
-
     if timestamp is None:
         timestamp = time_last_30_m()
 
@@ -1081,7 +1082,7 @@ def informacion_sankey_generacion_demanda_por_provincia(provincia, timestamp=Non
         timestamp = time_last_30_m()
 
     time_range = pi_svr.time_range(str(timestamp), str(timestamp))
-    details = ['Gen. Inmersa', 'Gen. Local', 'S.N.I', 'Demanda ' + provincia]
+    details = ['Gen. Inmersa', 'Gen. Local', 'Desde S.N.I', 'Hacia S.N.I', 'Demanda ' + provincia]
     df_result = pd.DataFrame(columns=["source", "target", "value", "timestamp"])
 
     df_gen = generacion_por_provincia(provincia, time_range)
@@ -1093,7 +1094,8 @@ def informacion_sankey_generacion_demanda_por_provincia(provincia, timestamp=Non
         df_generacion_local = df_gen
         df_gen_inmersa = pd.DataFrame()
     else:
-        df_generacion_local = df_gen.drop(df_gen_inmersa.columns, axis=1)
+        df_generacion_local = df_gen.drop(set_list, axis=1)
+        df_gen_inmersa = df_gen_inmersa[list(set_list)]
 
     gen_inmersa, gen_local = 0, 0
     if not df_gen_inmersa.empty:
@@ -1103,6 +1105,7 @@ def informacion_sankey_generacion_demanda_por_provincia(provincia, timestamp=Non
     demanda_provincia = demanda_por_provincia(provincia, timestamp)["current_value"].sum()
     idx = 0
 
+    # El S.N.I esta aportando potencia para cubrir la demanda
     if demanda_provincia > (gen_inmersa + gen_local):
         sni = demanda_provincia - (gen_inmersa + gen_local)
         values = [gen_inmersa, gen_local, sni]
@@ -1112,6 +1115,8 @@ def informacion_sankey_generacion_demanda_por_provincia(provincia, timestamp=Non
                 df_result.at[idx, "source"] = d
                 df_result.at[idx, "value"] = round(v, 1)
                 df_result.at[idx, "target"] = "Demanda " + provincia
+
+    # El S.N.I recibe potencia de los generadores locales e inmersa
     else:
         sni = (gen_inmersa + gen_local) - demanda_provincia
         values = [gen_inmersa, gen_local]
@@ -1123,7 +1128,7 @@ def informacion_sankey_generacion_demanda_por_provincia(provincia, timestamp=Non
                 df_result.at[idx, "target"] = "Gen. " + provincia
 
         values = [sni, demanda_provincia]
-        for d, v in zip(details[2:], values):
+        for d, v in zip(details[3:], values):
             idx += 1
             if v > 0:
                 df_result.at[idx, "source"] = "Gen. " + provincia
@@ -1193,7 +1198,7 @@ def tendencia_demanda_por_provincia(provincia, time_range=None, span=None):
         provincia = "Sto. Domingo de los Tsachilas"
 
     # calculo válido en cada 30 minutos
-    valid_range = [time_last_30_m(),  tiempo_de_corte(30)]
+    valid_range = [time_last_30_m(), tiempo_de_corte(30)]
     tmp_name = "tendencia_demanda_por_provincia_" + str(provincia) + str(time_range) + str(span) + ".pkl"
     tmp_file = tmp.retrieve_file(tmp_name)
     if tmp_file is not None:
@@ -1245,7 +1250,6 @@ def tendencia_demanda_por_provincia(provincia, time_range=None, span=None):
 
 
 def demanda_por_posicion_desde_sivo(lst_posiciones, time_range=None):
-
     if time_range is None:
         time_range = pi_svr.time_range_for_today_all_day
     ini_date, end_date = pi_svr.start_and_time_of(time_range)
@@ -1399,7 +1403,6 @@ def detalle_puntos_entrega(provincia=None, timestamp=None):
 
 
 def detalle_generacion_inmersa(ls_position_code=None, timestamp=None):
-
     if ls_position_code is None:
         ls_position_code = ""
     elif len(ls_position_code) == 0:
@@ -1461,7 +1464,6 @@ def generacion_inmersa_en_puntos_carga(list_posiciones=None, time_range=None):
 
 
 def generacion_desde_sivo(lst_cod_unidades=None, time_range=None):
-
     if time_range is None:
         time_range = pi_svr.time_range_for_today_all_day
 
@@ -1473,21 +1475,27 @@ def generacion_desde_sivo(lst_cod_unidades=None, time_range=None):
             str_cod_unidades = [lst_cod_unidades]
         if isinstance(lst_cod_unidades, list):
             str_cod_unidades = str(lst_cod_unidades).replace('[', '').replace(']', '')
-            str_cod_unidades = 'Unidad IN ({0})'.format(str_cod_unidades)
+            str_cod_unidades = 'Unidad IN ({0}) AND'.format(str_cod_unidades)
 
     sql_str = "SELECT concat(Fecha, ' ', Hora) Timestamp, " \
               " Empresa, Central, GrupoGeneracion, Unidad, MV_Validado " \
               " FROM DV_Generacion " \
               " WHERE {0} " \
-              "AND Fecha between '{1}' AND '{2}'".format(str_cod_unidades, str_ini, str_end)
+              " Fecha between '{1}' AND '{2}'".format(str_cod_unidades, str_ini, str_end)
 
     df_gen = pd.read_sql(sql_str, gop_svr.conn)
     if df_gen.empty:
         df_gen = generation_matrix(time_range)
-        mask = df_gen['U_Codigo'].isin(lst_cod_unidades)
-        df_gen = df_gen[mask]
+        ls_fechas = list(set(df_gen["Fecha"]))
+        ls_fechas.sort()
+        ind_timestamp = pd.to_datetime(ls_fechas)
+        if lst_cod_unidades is not None:
+            mask = df_gen['U_Codigo'].isin(lst_cod_unidades)
+            df_gen = df_gen[mask]
         df_gen = df_gen.pivot(index='Fecha', columns='U_Codigo', values='Potencia')
         df_gen.fillna(0, inplace=True)
+        df_gen.index = pd.to_datetime(df_gen.index)
+        df_gen = df_gen.reindex(ind_timestamp, fill_value=0)
     else:
         df_gen = df_gen.pivot(index='Timestamp', columns="Unidad", values="MV_Validado")
         df_gen.index = pd.to_datetime(df_gen.index)
@@ -1528,8 +1536,293 @@ def generacion_por_provincia(provincia, time_range=None):
         return pd.DataFrame()
 
 
+def reserva_de_generacion(timestamp=None):
+    if timestamp is None:
+        timestamp = time_last_30_m()
+    elif isinstance(timestamp, str):
+        timestamp = convert_str_to_time(timestamp)
+
+    timestamp = time_last_30_m(timestamp)
+
+    # calculo válido para cualquier momento ([None, None])
+    collection_name = "reserva_de_generacion"
+    cal_id = str(timestamp)
+    success, data_dict = tmp.retrieve_dict_in_cal_db(collection_name, cal_id)
+    if success and data_dict is not None:
+        return data_dict
+
+    time_range = pi_svr.time_range(str(timestamp), str(timestamp))
+    df_indisponibilidad = detalle_de_indisponibilidad(timestamp)
+    df_efectiva = potencia_efectiva_sni(str(timestamp))
+    p_efectiva = round(df_efectiva["PotenciaEfectiva"].sum(axis=0), 1)
+
+    if dt.datetime.now() <= timestamp:
+        resp = dict(p_efectiva=p_efectiva, p_indisponible_linea=None,
+                    p_disponible_linea=None, p_generacion=None,
+                    p_indisponible_total=None, p_disponible_total=None,
+                    p_reserva=None, p_efectiva_linea=None, timestamp=str(timestamp))
+        return resp
+
+    p_indisponible_total = round(df_indisponibilidad.loc["POT_INDISPONIBLE"].sum(axis=0), 1)
+    p_disponible_total = p_efectiva - p_indisponible_total
+
+    df_gen_linea = generacion_desde_sivo(None, time_range).T
+    mask = df_gen_linea.iloc[:, 0] > 0
+    df_gen_linea = df_gen_linea[mask]
+    set_linea = set(df_gen_linea.index).intersection(df_indisponibilidad.columns)
+    df_indisponibilidad_linea = df_indisponibilidad[list(set_linea)]
+    p_efectiva_en_linea = round(df_indisponibilidad_linea.loc["POT_EFECTIVA"].sum(axis=0, skipna=False), 1)
+    p_indisponible_linea = round(df_indisponibilidad_linea.loc["POT_INDISPONIBLE"].sum(axis=0, skipna=False), 1)
+    p_disponible_linea = round(p_efectiva_en_linea - p_indisponible_linea, 1)
+    p_generacion = round(df_gen_linea.iloc[:, 0].sum(skipna=False), 1)
+    p_reserva = round(p_disponible_linea - p_generacion, 1)
+    resp = dict(p_efectiva=p_efectiva, p_indisponible_linea=p_indisponible_linea,
+                p_disponible_linea=p_disponible_linea, p_generacion=p_generacion,
+                p_reserva=p_reserva, p_efectiva_linea=p_efectiva_en_linea,
+                p_indisponible_total=p_indisponible_total, p_disponible_total=p_disponible_total,
+                timestamp=str(timestamp))
+
+    tmp.save_dict_in_cal_db(collection_name, cal_id, resp)
+    return resp
 
 
+def tendencia_reserva_de_generacion(ini_date=None, end_date=None, freq=None):
+    if ini_date is None:
+        ini_date = dt.date.today()
+    if end_date is None:
+        end_date = dt.date.today() + dt.timedelta(days=1)
+    if freq is None:
+        freq = "30T"
+
+    resp = list()
+    date_range = pd.date_range(start=ini_date, end=end_date, freq=freq)
+    aux = reserva_de_generacion(date_range[0])
+    resp.append(aux)
+    for d_i in date_range[1:]:
+        if d_i <= dt.datetime.now():
+            aux = reserva_de_generacion(d_i)
+        else:
+            aux = aux.copy()
+            aux2 = {"timestamp": str(d_i), "p_efectiva": aux["p_efectiva"]}
+            for ix in aux.keys():
+                aux[ix] = None
+            aux.update(aux2)
+        resp.append(aux)
+    return resp
+
+
+def detalle_de_indisponibilidad(ini_date=None, end_date=None):
+    if ini_date is None:
+        ini_date = time_last_30_m()
+    if end_date is None:
+        end_date = ini_date
+    if isinstance(ini_date, str):
+        ini_date = convert_str_to_time(ini_date)
+    if isinstance(end_date, str):
+        end_date = convert_str_to_time(end_date)
+
+    sql_str = " EXEC Sp_EstadoUnidadesVigentes '{0}','{1}' ".format(ini_date, end_date)
+    df_indisponibilidad = pd.read_sql(sql_str, con=gop_svr.bosni_conn)
+    df_indisponibilidad["FECHA_HORA"] = [str(x) for x in df_indisponibilidad["FECHA_HORA"]]
+    df_indisponibilidad["EVENTO_FECHA"] = [str(x) for x in df_indisponibilidad["EVENTO_FECHA"]]
+    df_indisponibilidad.set_index("UNIDAD", inplace=True)
+    df_indisponibilidad["POT_DISPONIBLE"] = df_indisponibilidad["POT_EFECTIVA"] - df_indisponibilidad[
+        "POT_INDISPONIBLE"]
+
+    return df_indisponibilidad.T
+
+
+def detalle_de_disponibilidad(timestamp):
+    if timestamp is None:
+        timestamp = time_last_30_m()
+
+    df_indisponibilidad = detalle_de_indisponibilidad()
+
+
+def flujo_de_lineas(nivel_voltaje, ini_date=None, end_date=None):
+    if ini_date is None:
+        ini_date = dt.datetime.now() - dt.timedelta(minutes=15)
+    if end_date is None:
+        end_date = dt.datetime.now()
+
+    sql_str = "select * from sivo.dbo.vDetalleCircuitos " \
+              " WHERE '{0}' between FechaAlta AND isnull(FechaBaja, '{0}')" \
+              " AND Voltaje = '{1} kV' " \
+              " ORDER BY CodigoLinea".format(ini_date.date(), nivel_voltaje)
+
+    df_detail = pd.read_sql(sql_str, con=gop_svr.conn)
+    del df_detail["FechaBaja"]
+    df_detail.dropna(axis=0, inplace=True)
+    df_detail["CodigoLinea"] = [x.strip() for x in df_detail["CodigoLinea"]]
+
+    df_detail["ID_circuito"] = [df_detail["CodigoLinea"].loc[x] + "_" + df_detail["Circuito"].loc[x]
+                                for x in df_detail.index]
+    df_detail["CodigoMed"] = [df_detail["CodigoLinea"].loc[x] + "_" + df_detail["Circuito"].loc[x] + "_"
+                                + str(df_detail["TipoTag"].loc[x][-1])
+                                for x in df_detail.index]
+
+    time_range = pi_svr.time_range(ini_date, end_date)
+
+    # trabajando con los puntos .AV:
+    mask_av = (df_detail["IdTipoTAG"] == 15) | (df_detail["IdTipoTAG"] == 17)
+    df_values = process_values(df_detail[mask_av], time_range)
+
+    # trabajando con los puntos .AQ:
+    mask_aq = (df_detail["IdTipoTAG"] == 16) | (df_detail["IdTipoTAG"] == 18)
+    df_quality = process_calidad(df_detail[mask_aq])
+
+    # uniendo valor y calidad de la tag:
+    df_values = df_values.join(df_quality["quality"], how='inner')
+
+    df_values["CodigoMed"] = df_values.index
+    # Filtrando tags no encontradas:
+    mask = ~(df_values["quality"] == "NOT FOUND")
+    df_values = df_values[mask]
+
+    codes = set(df_values["ID_circuito"])
+    r = [validar_flujo(df_values[df_values["ID_circuito"] == code]) for code in codes]
+    r = pd.DataFrame(r)
+    r.index = r["CodigoMed"]
+    r = pd.merge(r, df_detail[mask_av], on=["CodigoMed", "ID_circuito"])
+    r = r.sort_values(by=["Lim_MaxOperacion", "ID_circuito", "Circuito"], ascending=True)
+    return r
+
+
+def datos_cargabilidad_lineas(nivel_voltaje, ini_date=None, end_date=None):
+    if ini_date is None:
+        ini_date = dt.datetime.now() - dt.timedelta(minutes=15)
+    if end_date is None:
+        end_date = dt.datetime.now()
+
+    df = flujo_de_lineas(nivel_voltaje, ini_date, end_date)
+    resp = [preparar_dict(df.loc[ix]) for ix in df.index]
+    resp = [x for y in resp for x in y]
+
+    return resp
+
+
+def preparar_dict(serie):
+    serie = serie.copy()
+    select = ['count', 'mean', 'std', 'min', 'per_25', 'per_50', 'per_75', 'max',
+       'timestamp', 'current_value', 'quality',
+       'dif', 'Linea', 'Voltaje', 'Lim_MaxOperacion', 'Lim_OperacionContinuo',
+       'Lim_Termico', 'TAG']
+    serie['timestamp'] = str(serie['timestamp'])
+    s_destino = serie['NombreSubDestino']
+    s_origen = serie['NombreSubOrigen']
+    circuito = serie['Circuito']
+    if s_destino > s_origen:
+        code_1 = s_origen + "#" + s_destino + "--" + circuito
+        code_2 = s_destino + "#" + s_origen + "--" + circuito
+    else:
+        code_1 = s_destino + "#" + s_origen + "--" + circuito
+        code_2 = s_origen + "#" + s_destino + "--" + circuito
+    value = serie[select].to_dict()
+    resp = [dict(name=code_1, value=value, imports=[code_2]), dict(name=code_2, value=0, imports=[])]
+    return resp
+
+
+def process_values(df_work, time_range):
+    df_result = pd.DataFrame()
+
+    columns = ['count', 'mean', 'std', 'min', 'per_25', 'per_50', 'per_75', 'max', "timestamp", "current_value",
+               "ID_circuito"]
+
+    for ix in df_work.index:
+        pi_point = osi.PI_point(pi_svr, df_work["TAG"].loc[ix])
+        if pi_point.pt is not None:
+            df_values = pi_point.recorded_values(time_range)
+            snapshot = pi_point.snapshot()
+            describe = df_values.describe().T
+            describe.index = [df_work["CodigoMed"].loc[ix]]
+            describe["timestamp"] = snapshot.Timestamp
+            describe["current_value"] = snapshot.Value
+
+        else:
+            describe = pd.DataFrame(columns=columns, index=[df_work["CodigoMed"].loc[ix]])
+            describe["timestamp"] = dt.datetime.now()
+            describe["current_value"] = np.NAN
+
+        describe["ID_circuito"] = df_work["ID_circuito"].loc[ix]
+        describe.columns = columns
+        df_result = df_result.append(describe)
+
+    return df_result
+
+
+def process_calidad(df_work):
+    df_result = pd.DataFrame()
+
+    columns = ["quality"]
+    for ix in df_work.index:
+        pi_point = osi.PI_point(pi_svr, df_work["TAG"].loc[ix])
+        if pi_point.pt is not None:
+            snapshot = pi_point.snapshot()
+            describe = pd.DataFrame(index=[df_work["CodigoMed"].loc[ix]], columns=columns)
+            describe["quality"] = str(snapshot.Value)
+        else:
+            describe = pd.DataFrame(index=[df_work["CodigoMed"].loc[ix]], columns=columns)
+            describe["quality"] = "NOT FOUND"
+
+        df_result = df_result.append(describe)
+
+    return df_result
+
+
+def validar_flujo(df_to):
+
+    df_to = df_to.copy()
+    try:
+        df_to = df_to.sort_values(by="timestamp")
+        df_to["dif"] = abs(df_to["current_value"].iloc[0] - df_to["current_value"].iloc[-1])
+    except Exception as e:
+        print(e)
+        df_to["dif"] = 0
+
+    # si las mediciones se enuentran en estado normal:
+    if ("Normal" in df_to["quality"].iloc[0] or "AL" in df_to["quality"].iloc[0]) and \
+            ("Normal" in df_to["quality"].iloc[-1] or "AL" in df_to["quality"].iloc[-1]):
+        resp = df_to.max()
+        resp.loc["current_value"] = df_to["current_value"].iloc[-1]
+        return resp
+
+    # si ambas mediciones se encuentran en error de telemetría:
+    if "TE" in df_to["quality"].iloc[0] and "TE" in df_to["quality"].iloc[-1]:
+        resp = df_to.max()
+        resp.loc["current_value"] = df_to["current_value"].iloc[-1]
+        resp.loc["quality"] = "TE"
+        return resp
+
+    # si ambas mediciones se encuentran en ingreso manual:
+    if "TE" in df_to["quality"].iloc[0] and "TE" in df_to["quality"].iloc[-1]:
+        resp = df_to.max()
+        resp.loc["current_value"] = df_to["current_value"].iloc[-1]
+        resp.loc["quality"] = "ME"
+        return resp
+
+    # Buscando una medición que este correcta: en primer caso
+    if "Normal" in df_to["quality"].iloc[0] or "AL" in df_to["quality"].iloc[0]:
+        resp = df_to.iloc[0]
+        return resp
+
+    # Buscando una medición que este correcta: en segundo caso
+    if "Normal" in df_to["quality"].iloc[-1] or "AL" in df_to["quality"].iloc[-1]:
+        resp = df_to.iloc[-1]
+        return resp
+
+    return df_to.max()
+
+
+def potencia_efectiva_sni(timestamp=None):
+    if timestamp is None:
+        timestamp = timestamp_now()
+
+    sql_str = "exec sivo.dbo.PotenciasEfectivasSNI '{0}'".format(timestamp)
+    df_detail = pd.read_sql(sql_str, gop_svr.conn)
+    df_detail["FechaAlta"] = [str(x) for x in df_detail["FechaAlta"]]
+    df_detail["FechaBaja"] = [str(x) for x in df_detail["FechaBaja"]]
+    df_detail["FechaInicioOpComercial"] = [str(x) for x in df_detail["FechaInicioOpComercial"]]
+    return df_detail
 
 
 """
@@ -1548,37 +1841,44 @@ def integrating_by_average(df, dx):
 
 
 def timestamp_now():
-    dt = datetime.datetime.now()
-    return dt.strftime("%Y-%m-%d %H:%M:%S")
+    dt_now = datetime.datetime.now()
+    return dt_now.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def time_last_30_m():
-    dt = datetime.datetime.now()
-    m = dt.minute
-    if m < 30:
-        dt = dt.replace(minute=0)
-    if m > 30:
-        dt = dt.replace(minute=30)
-    dt = dt.replace(second=0, microsecond=0)
-
-    return dt
-
-
-def tiempo_de_corte(corte_minutos):
-    dt = datetime.datetime.now()
-    m = dt.minute
-    dt = dt.replace(second=0, microsecond=0)
-    acc_m = 0
-    if m < corte_minutos:
-        dt = dt.replace(minute=corte_minutos)
+def time_last_30_m(fecha_evaluada=None):
+    if fecha_evaluada is None:
+        dt_eval = datetime.datetime.now()
     else:
-        dt = dt.replace(minute=0)
+        dt_eval = fecha_evaluada
+    m = dt_eval.minute
+    if m < 30:
+        dt_eval = dt_eval.replace(minute=0)
+    if m > 30:
+        dt_eval = dt_eval.replace(minute=30)
+    dt_eval = dt_eval.replace(second=0, microsecond=0)
+
+    return dt_eval
+
+
+def tiempo_de_corte(corte_minutos, fecha_evaluada=None):
+    if fecha_evaluada is None:
+        dt_now = datetime.datetime.now()
+
+    else:
+        dt_now = fecha_evaluada
+
+    m, acc_m = dt_now.minute, 0
+    dt_now = dt_now.replace(second=0, microsecond=0)
+    if m < corte_minutos:
+        dt_now = dt_now.replace(minute=corte_minutos)
+    else:
+        dt_now = dt_now.replace(minute=0)
         for i in range(60):
-            dt += datetime.timedelta(minutes=corte_minutos)
+            dt_now += datetime.timedelta(minutes=corte_minutos)
             acc_m += corte_minutos
             if m < acc_m:
                 break
-    return dt
+    return dt_now
 
 
 def convert_str_to_time(str_time, ls_format=None):
@@ -1613,7 +1913,10 @@ def test():
     # tag = obtener_tag_name_por_descripcion("Demanda Nacional")
     # tendencia_demanda_por_provincia("Pichincha", pi_svr.time_range("2018-10-09", "2018-10-10"))
     # generacion_por_provincia("Pichincha")
-    informacion_sankey_generacion_demanda_por_provincia("Azuay")
+    # informacion_sankey_generacion_demanda_por_provincia("Azuay")
+    cargabilidad_de_lineas(138)
+    pass
+
 
 if __name__ == "__main__":
     perform_test = True

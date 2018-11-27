@@ -15,20 +15,24 @@ Los siguientes son requisitos para este servidor:
     - six	1.11.0	1.11.0
     - xlrd	1.1.0	1.1.0
     - SQLAlchemy	1.2.6	1.2.7
+    conda install -c conda-forge cufflinks-py
+    conda install -c conda-forge flask-excel
+
 
 Aplicativos adicionales:
 
-    - PI-SDK
-    conda install -c clinicalgraphics/label/archived wfastcgi
-
-running as:
-In folder E:/GOP_WebServer
-E:\GOP_WebServer\venv\Scripts\python.exe "C:\Program Files\JetBrains\PyCharm 2018.1.1\helpers\pydev\pydevd.py"
---module --multiproc --qt-support=auto --client 127.0.0.1 --port 60060 --file flask run
-
-E:\GOP_WebServer\venv\Scripts\python.exe "C:\Program Files\JetBrains\PyCharm 2017.1.5\helpers\pydev\pydevconsole.py"
---module --multiproc --qt-support=auto --client 127.0.0.1 --port 60060 --file flask run
+    - PI-SDK (version 2014 mínimo)
+    - AF-Client (version 2016 mínimo)
+    conda install pythonnet
+    conda install wfastcgi
 
 Create sql-classes:
 run in the cmd, and copy the 'model' file to classes folder:
 sqlacodegen mssql+pymssql://sivo:sivoer@DOP-WKSTAADO:1433/sivo --outfile models.py
+
+IIS Instalation:
+Handler Mappings:
+    C:\ProgramData\Anaconda3\python.exe | C:\ProgramData\Anaconda3\Lib\site-packages\wfastcgi.py
+
+
+

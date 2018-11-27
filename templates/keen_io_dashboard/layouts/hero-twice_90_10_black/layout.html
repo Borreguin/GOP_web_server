@@ -1,0 +1,30 @@
+{% extends "layouts/head_without_menu_black.html" %}
+{% block content %}
+
+
+  <div class="container-fluid" style="height: 98%; padding: 0">
+
+		<div id="row-main" class="row" style="height: 100%;">
+              <div id="content" class="col-lg-12" style="height: 100%; padding-right: 0">
+                <div class="chart-wrapper" style="height: 100%">
+
+                {% block title_1 %}
+                    <div class="chart-title" style="padding-top: 4px; padding-right: 4px">
+                        {{ titles.sbt1 | safe }}
+                    </div>
+                {% endblock %}
+
+                  <div class="chart-stage" style="height: 99.5%">
+                      {% block grid_1 %}
+                          <div id="grid_1">
+                            <img data-src="holder.js/100%x100%/white/text:#grid_1">
+                          </div>
+                      {% endblock %}
+                  </div>
+
+                </div>
+              </div>
+		</div>
+  </div>
+
+{% endblock %}

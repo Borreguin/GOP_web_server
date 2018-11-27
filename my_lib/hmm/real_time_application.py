@@ -1,4 +1,5 @@
-""" coding: utf-8
+# -*- coding: utf-8 -*-
+"""
 Created by rsanchez on 21/06/2018
 Este proyecto ha sido desarrollado en la Gerencia de Operaciones de CENACE
 Mateo633
@@ -13,23 +14,24 @@ from my_lib.hmm import hmm_util as hmm_u
 from my_lib.PI_connection import pi_connect as pi
 from my_lib.holidays import holidays as hl
 from my_lib.GOP_connection import GOPserver as op
+from my_lib.temporal_files_manager import temporal_manager as tmp
 import datetime
 import os
 
 script_path = os.path.dirname(os.path.abspath(__file__))
 
 # from plotly import tools  # to do subplots
-import plotly.offline as py
+# import plotly.offline as py
 import cufflinks as cf
-import plotly.graph_objs as go
+# import plotly.graph_objs as go
 from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
 
-init_notebook_mode(connected=False)
+# init_notebook_mode(connected=False)
 cf.set_config_file(offline=True, world_readable=True, theme='ggplot')
 # import pylab as pl
 # from IPython.display import display
 
-py.init_notebook_mode(connected=False)  # run at the start of every ipython notebook to use plotly.offline
+# py.init_notebook_mode(connected=False)  # run at the start of every ipython notebook to use plotly.offline
 
 max_alpha = 2
 min_step = 0.25
@@ -42,7 +44,7 @@ gop_svr = op.GOPserver()
 exclude_list = ['XMEMEXPU04', 'COESEXPU02', 'XMEMEXPU02']
 
 
-def day_cluster_matrix(hmm_model, df_y):
+def day_cluster_matrix(hmm_model, df_y, model_id):
     """
     Se crea una matrix de acuerdo a las familias encontradas
     las familias corresponden a:
@@ -59,6 +61,12 @@ def day_cluster_matrix(hmm_model, df_y):
     :param df_y: la secuencia de estados ocultos de los observaciones df_x
     :return: matriz con el respectivo agrupamiento de familias
     """
+    file_name = model_id
+    temp = tmp.retrieve_file(file_name=file_name)
+    valid_range = [datetime.datetime.now(), datetime.datetime.now() + datetime.timedelta(days=1)]
+    if temp is not None:
+        return temp
+
     n_comp = hmm_model.n_components
     dict_cl_week = dict()
     sp = min(0.005 * len(df_y.index), 3)
@@ -82,6 +90,7 @@ def day_cluster_matrix(hmm_model, df_y):
                 dict_cl_week = append_in_list(dict_cl_week, "at_" + n_d, n)
 
     dict_cl_week["holidays"] = hl.get_holidays_dates()
+    tmp.save_variables(file_name, dict_cl_week, valid_range)
     return dict_cl_week
 
 
@@ -156,6 +165,16 @@ def get_expected_profiles_from(df_mean, df_with, n_expected_clusters):
     # result = (df_error.sum() / n_real_time)*100
 
     df_error = df_error * df_error
+    # wgs = pd.Series([(x + 1) / 10 for x in range(len(df_error.index))], index=df_error.index)
+    # df_error = df_error.mul(wgs, axis=0)
+    df_error.iloc[-1] = df_error.iloc[-1] * 10
+    try:
+        df_error.iloc[-2] = df_error.iloc[-2] * 10
+        df_error.iloc[-3] = df_error.iloc[-3] * 10
+        df_error.iloc[0] = df_error.iloc[0] * 10
+    except Exception:
+        pass
+
     result = df_error.sum().pow(1 / 2)
 
     # return df_error * 100
@@ -200,7 +219,7 @@ def obtain_expected_area(model_path, data_path, tag_name, str_time_ini, str_time
              "Wednesday": [2,10,...], "sp_Wednesday":[13,44,...],  
              "atypical":[13,25, ...] }
     """
-    dict_cl_week = day_cluster_matrix(model, df_y)
+    dict_cl_week = day_cluster_matrix(model, df_y, model_id=model_path)
 
     """ Getting information from the PIserver """
     pi_svr = pi.PIserver()
@@ -241,7 +260,7 @@ def obtain_expected_area(model_path, data_path, tag_name, str_time_ini, str_time
 
             else:
                 rs = get_expected_profiles_from(df_model_mean, df_with=df_int[tag_name],
-                                            n_expected_clusters=n_profiles)
+                                                n_expected_clusters=n_profiles)
                 rs = list(rs.index.values)
 
             # print(rs)
@@ -360,7 +379,7 @@ def there_is_n_consecutive_violations(check_list, n_violations):
 
     if len(check_list) == 0:
         return True
-    elif str(check_list).find(str(str_violations)) >= 0 :
+    elif str(check_list).find(str(str_violations)) >= 0:
         return True
     else:
         return False
@@ -540,11 +559,11 @@ def flag_day(family):
     GRAPHICAL PART OF THIS MODULE
 """
 
-layout = go.Layout(
+layout = dict(
     autosize=False,
     width=700,
     height=900,
-    margin=go.Margin(
+    margin=dict(
         l=50,
         r=50,
         b=50,
@@ -569,10 +588,11 @@ def traces_expected_area_and_real_time(df_expected_area):
                    'expected': True}
 
     for column in df_expected_area.columns:
-        trace = go.Scatter(
-            x=df_expected_area.index,
-            y=df_expected_area[column].round(1),
+        trace = dict(
+            x=[str(x) for x in df_expected_area.index],
+            y=list(df_expected_area[column].round(1)),
             name=names[column],
+            type='scatter',
             mode='lines',
             fill=fill[column],
             # legendgroup='group1',
@@ -593,12 +613,13 @@ def trace_df_std(df_std):
     dict_to_draw = dict(positive=1, negative=-1)
     show_legend = dict(positive=True, negative=False)
     for f in dict_to_draw.keys():
-        trace = go.Scatter(
-            x=df_std.index,
-            y=df_std.round(1) * dict_to_draw[f],
+        trace = dict(
+            x=[str(x) for x in df_std.index],
+            y=list(df_std.round(1) * dict_to_draw[f]),
             # legendgroup='group2',
             name="Desviación estándar",
             mode='lines',
+            type='scatter',
             fill='tozeroy',
             xaxis='x',
             yaxis='y2',
@@ -620,11 +641,12 @@ def trace_df_despacho(df_despacho):
     idx = -1
     for column in df_despacho.columns:
         idx += 1
-        trace = go.Scatter(
-            x=df_despacho.index,
-            y=df_despacho[column].round(1),
+        trace = dict(
+            x=[str(x) for x in df_despacho.index],
+            y=list(df_despacho[column].round(1)),
             name=column,
             mode='lines',
+            type='scatter',
             # legendgroup='group1',
             line=dict(
                 width=3,
@@ -642,10 +664,11 @@ def trace_df_error(df_error, last_color):
     traces = list()
     # for column in ["programado", "estimado"]:
     for column in ["programado"]:
-        trace_i = go.Scatter(
-            x=df_error.index,
-            y=df_error[column].round(1),
+        trace_i = dict(
+            x=[str(x) for x in df_error.index],
+            y=list(df_error[column].round(1)),
             name=names[column],
+            type='scatter',
             # legendgroup='group2',
             mode='lines+text',
             xaxis='x',
@@ -669,27 +692,27 @@ def get_layout(style):
     font_color = {"default": "white", "white_style": "black", "black_style": "white"}
     # 32, 56, 100,
 
-    return go.Layout(
+    return dict(
         xaxis=dict(
             domain=[0, 1],
             tickcolor=tick_color[style],
             dtick=1000 * 60 * 60,
-            gridcolor='gray'
+            gridcolor='#6c696d'
         ),
         yaxis=dict(
             domain=[0, 0.70],
             tickcolor=tick_color[style],
-            gridcolor='gray'
+            gridcolor='#6c696d'
         ),
         yaxis2=dict(
             domain=[0.75, 1],
             tickcolor=tick_color[style],
-            gridcolor='rgba(230, 230, 230, 1)'
+            gridcolor='#6c696d'
         ),
         paper_bgcolor=paper_bgcolor[style],
         plot_bgcolor=plot_bgcolor[style],
         font=dict(color=font_color[style]),
-        margin=go.Margin(
+        margin=dict(
             t=50,
             pad=0
         )

@@ -7,7 +7,7 @@
         <!-- The Modal -->
     <div id="subir_re_despacho" class="modal">
         <!-- Modal content -->
-        <div id="modal_menu" class="modal-content" style="height: 450px">
+        <div id="modal_menu" class="modal-content" style="height: 470px">
             <div class="modal-header-warning">
                 <span class="close">&times;</span>
                 <h4>Desea cargar y/o actualizar el re/despacho programado?</h4>
@@ -50,7 +50,8 @@
             </div>
 
             <div id="title_result" style="color: #396891; margin: auto; text-align: center"> </div>
-            <div id="msg_result" style="color: #5a585b; margin: auto; height: 310px; overflow: scroll"> </div>
+            <div id="msg_contenedor" style="color: #5a585b; margin: auto; height: 0px; overflow: scroll ; white-space: pre ;
+            padding: 20px"><p id="msg_result"> </p> </div>
 
         </div>
     </div>
@@ -90,10 +91,10 @@
           </tbody>
         </table>
         <div style="width: 6%; float: left; margin-left: 15px">
-            <a id="download_icon" href="#" class="btn btn-default btn-lg" style="font-size: small; width: 120px">
+            <a id="download_icon" href="#" class="btn btn-default btn-lg" style="font-size: small; width: 100px">
              <span class="glyphicon glyphicon-file"></span> Descargar
             </a>
-            <a id="update_icon" class="btn btn-default btn-lg" style="font-size: small; width: 120px">
+            <a id="update_icon" class="btn btn-default btn-lg" style="font-size: small; width: 100px">
              <span class="glyphicon glyphicon-open"></span> Actualizar
             </a>
         </div>
@@ -373,14 +374,24 @@
         // When the user clicks on <span> (x), close the modal
         span.onclick = function() {
             modal.style.display = "none";
+            default_modal();
         };
 
         // When the user clicks anywhere outside of the modal, close it
         window.onclick = function(event) {
             if (event.target === modal) {
                 modal.style.display = "none";
+                default_modal();
             }
         };
+
+    function default_modal() {
+        d3.select("#title_result").text("");
+        d3.select("#msg_result").html("");
+        d3.select("#modal_menu").style("height", "470px");
+        d3.select("#msg_result").style("height", "0px");
+        d3.select("#msg_contenedor").style("height", "0px");
+    }
 
     function actualizar_fecha_despacho() {
         let item = d3.select("#datepicker");
@@ -405,19 +416,39 @@
         let item = d3.select("#datepicker");
         let f_dp = item.property("value");
         d3.select("#modal_menu").style("height", "750px");
+        d3.select("#msg_result").style("height", "300px");
+        d3.select("#msg_contenedor").style("height", "300px");
         d3.select("#title_result").text("Procesando...");
-        d3.select("msg_result").text("Espere por favor");
-
+        loading(0, 5);
          queue()
-          .defer(d3.json, '/cargar_re_despacho/' + f_dp)
+             .defer(d3.json, '/cargar_re_despacho/' + f_dp)
+             .defer(loading, 5, 30)
+             .defer(loading, 30, 50)
+             .defer(loading, 50, 100)
           .await(function(error, result){
                 if(error) throw error;
                 d3.select("#title_result").text(result.title);
-                d3.select("msg_result").text(result.msgs);
+                d3.select("#msg_result").html(result.msgs);
           });
     }
 
+    async function loading(ini, fin, callback){
 
+        let msg = "Espere por favor: <br/>";
+        for(let i=ini; i<=fin; i++){
+            msg += "|";
+            if(d3.select("#title_result").text() === "Procesando..."){
+                d3.select("#msg_result")
+                    .html(msg + "<br/>" + i + "%");
+            }
+            await sleep(500);
+        }
+        if(callback === undefined){
+            return null
+        }else{
+            callback(null);
+        }
+    }
 
 
 

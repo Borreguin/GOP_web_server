@@ -10,12 +10,12 @@ import cufflinks as cf
 import plotly.graph_objs as go
 from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
 
-init_notebook_mode(connected=False)
+# init_notebook_mode(connected=False)
 cf.set_config_file(offline=True, world_readable=True, theme='ggplot')
 
 
 def get_stacked_layout():
-    return go.Layout(
+    return dict(
         xaxis=dict(
             tickcolor="black",
             gridcolor='gray',
@@ -30,12 +30,12 @@ def get_stacked_layout():
         ),
         paper_bgcolor="white",
         plot_bgcolor="#f2f2f2",
-        margin=go.Margin(
+        margin=(dict(
             t=50,
             r=60,
             b=100,
             pad=0
-        ),
+        )),
         legend=dict(
             orientation="h",
             xanchor="center",
@@ -43,7 +43,6 @@ def get_stacked_layout():
             x=0.5
         ),
         barmode='stack'
-
     )
 
 
@@ -60,10 +59,11 @@ def get_traces_for_gen_hydro_and_others(df_trend):
 
     for column in ["Hydro", "Others", "Exportation"]:
 
-        trace_i = go.Bar(
-            x=df_trend.index,
-            y=df_trend[column],
+        trace_i = dict(
+            x=[str(x) for x in df_trend.index],
+            y=list(df_trend[column]),
             name=names[column],
+            type='bar',
             marker=dict(
                 color=colors[column]
             )
@@ -72,10 +72,11 @@ def get_traces_for_gen_hydro_and_others(df_trend):
         traces.append(trace_i)
 
     for column in ["Total", "National_demand"]:
-        trace_i = go.Scatter(
-            x=df_trend.index,
-            y=df_trend[column],
+        trace_i = dict(
+            x=[str(x) for x in df_trend.index],
+            y=list(df_trend[column]),
             mode='lines',
+            type='scatter',
             name=names[column],
             line=dict(
                 width=width[column],

@@ -3,7 +3,7 @@ import pickle
 import time
 import warnings
 
-import ipyparallel as ipp
+# import ipyparallel as ipp
 import numpy as np
 import pandas as pd
 import json
@@ -11,7 +11,7 @@ from hmmlearn.hmm import GaussianHMM
 from sklearn.externals import joblib
 
 # Función para imprimir con Markdown style:
-from IPython.display import Markdown, display
+# from IPython.display import Markdown, display
 
 
 def h(x):
@@ -21,7 +21,8 @@ def h(x):
 def get_ipp_client(profile='default'):
     rc = None
     try:
-        rc = ipp.Client(profile=profile)
+        # rc = ipp.Client(profile=profile)
+        # rc = Client(profile=profile)
         print("Engines running for this client: {0}".format(rc.ids))
     except Exception as e:
         print(e)
@@ -238,7 +239,8 @@ def open_json_file(file_path):
 
 
 def printmd(string):
-    display(Markdown(string))
+    # display(Markdown(string))
+    print(string)
 
 
 def d_time(time_reference):

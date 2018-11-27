@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en" style="height: 99%">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" href="/static/my_css/hierarchical_edge.css" >
+    <script type="text/javascript" src="/static/js_lib/d3.v4.js"></script>
+    <script type="text/javascript" src="/static/my_js/hierarchical_edge.js"></script>
+</head>
+<body style="height: 100%">
+    <div id="grid_1" class="black_background" style="height: 100%;"> </div>
+    <script>
+        let h = document.getElementById('grid_1').offsetHeight;
+        let w = document.getElementById('grid_1').offsetWidth;
+        draw_hierarchical_edge(h, w);
+
+    </script>
+</body>
+</html>

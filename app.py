@@ -1,12 +1,18 @@
-""" coding: utf-8
+# -*- coding: utf-8 -*-
+"""
 Created by rsanchez on 03/05/2018
 Este proyecto ha sido desarrollado en la Gerencia de Operaciones de CENACE
 Mateo633
 """
+__author__ = "@RobertoSanchezA"
+
 import datetime
 import warnings
-
-import plotly.utils as plt_u
+from flask import request
+import requests
+import ast
+# import plotly.utils as plt_u
+import traceback
 
 from my_lib.PI_connection import pi_connect as osi
 from my_lib.calculations import calculos as cal
@@ -15,7 +21,7 @@ from my_lib.hmm import real_time_application as hmm_ap
 from my_lib.hmm import Cargar_despacho_programado as c_desp
 from my_lib.encrypt import library_encrypt as en
 from my_lib.visualizations import visual_util as vi
-
+from my_lib.temporal_files_manager import temporal_manager as tmp
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -27,13 +33,16 @@ from flask_cors import CORS
 import json
 import pandas as pd
 
+from logging.handlers import RotatingFileHandler
+import logging
+from time import strftime
 import os
 
 script_path = os.path.dirname(os.path.abspath(__file__))
 # default code
 app = Flask(__name__)
 CORS(app)
-excel.init_excel(app)                       # excel functions
+excel.init_excel(app)  # excel functions
 # ______________________________________________________________________________________________________________#
 # ________________________________        GENERAL        VARIABLES       _______________________________________
 
@@ -64,6 +73,7 @@ def test_page():
     """ Tests the use of templates and layouts"""
     school = {"school_name": 'prueba 1', "total_students": 32}
     print(en.encrypt("/cal/energy_production"))
+    resp = tmp.empty_temp_files(1)
     return render_template('test/show_test.html', school=school)
 
 
@@ -108,8 +118,8 @@ def index():
                    layout=dict(title='first graph')),
               dict(data=[dict(x=[1, 3, 5], y=[10, 50, 30], type='bar'), ],
                    layout=dict(title='second graph')),
-              dict(data=[dict(x=ts.index,  # Can use the pandas data structures directly
-                              y=ts)])]
+              dict(data=[dict(x=[str(x) for x in ts.index],  # Can use the pandas data structures directly
+                              y=[str(x) for x in ts])])]
 
     # Add "ids" to each of the graphs to pass up to the client
     # for templating
@@ -118,7 +128,7 @@ def index():
     # Convert the figures to JSON
     # PlotlyJSONEncoder appropriately converts pandas, datetime, etc
     # objects to their JSON equivalents
-    graphJSON = json.dumps(graphs, cls=plt_u.PlotlyJSONEncoder)
+    graphJSON = json.dumps(graphs)
 
     return render_template('test/index.html',
                            ids=ids, graphJSON=graphJSON)
@@ -176,14 +186,20 @@ def graph_trend_hydro_and_others_today():
     # data for trend hydro and others:
     df_trend = cal.trend_hydro_and_others_today()
     to_send = vi.get_traces_for_gen_hydro_and_others(df_trend)
-    json_data = json.dumps(to_send, cls=plt_u.PlotlyJSONEncoder)
+    json_data = json.dumps(to_send, allow_nan=True)
+    json_data = json_data.replace('NaN', 'null')
     return json_data
 
 
 @app.route("/cargar_re_despacho/<string:fecha>")
 def cargar_re_despacho(fecha):
     date = datetime.datetime.strptime(fecha, '%Y-%m-%d')
-    title, msgs = c_desp.run_process_for(date)
+    try:
+        title, msgs = c_desp.run_process_for(date)
+    except Exception as e:
+        msgs = str(e)
+        title = "Error al cargar el re/despacho " + str(fecha)
+    msgs = msgs.replace("\n", "<br/>")
     return jsonify(dict(title=title, msgs=msgs))
 
 
@@ -234,6 +250,46 @@ def forecasting(entity="menu", date=None, hour=None):
                            links=links_demand, title=title, titles=titles, notes=notes, date=date, hour=hour)
 
 
+@app.route("/pronostico-videowall/<string:entity>/<string:date>/<string:hour>")
+@app.route("/pronostico-videowall/<string:entity>/<string:date>/")
+@app.route("/pronostico-videowall/<string:entity>/<string:date>")
+@app.route("/pronostico-videowall/<string:entity>/")
+@app.route("/pronostico-videowall/<string:entity>")
+@app.route("/pronostico-videowall")
+def forecasting_videowall(entity="menu", date=None, hour=None):
+    msg = ""
+    model_name, tag_name, description, data_name, datetime_ini, datetime_fin = None, None, None, None, None, None
+
+    if date is None:
+        date = datetime.datetime.now().strftime("%Y-%m-%d")
+    if hour is None:
+        hour = datetime.datetime.now().strftime("%H:%M:%S")
+    else:
+        try:
+            hour_dt = datetime.datetime.strptime(date + " " + hour, '%Y-%m-%d %H:%M:%S')
+        except Exception as e:
+            hour_dt = datetime.datetime.strptime(date + " " + hour, '%Y-%m-%d %H:%M')
+        hour = hour_dt.strftime("%H:%M:%S")
+
+    try:
+        df_config = pd.read_excel("./hmm_application/config.xlsx")
+        df_config.set_index("entity", inplace=True)
+        description = df_config.at[entity, 'description']
+    except Exception as e:
+        print(e)
+        msg += "\n No existe la entidad: " + entity
+
+    if msg != "":
+        return msg
+
+    # graphJSON = graph_pronostico_demanda(description, date, hour)
+
+    title = "Pronóstico de la demanda en tiempo real"
+    titles = {'sbt1': description, 'sbt2': 'Información complementaria'}
+    return render_template('pages/pronostico_sala_control.html',
+                           title=title, titles=titles, date=date, hour=hour)
+
+
 @app.route("/grafica_pronostico/<string:description>/<string:date>/<string:hour>/<string:style>")
 def graph_pronostico_demanda(description, date=None, hour=None, style="default"):
     if date is None:
@@ -264,16 +320,62 @@ def graph_pronostico_demanda(description, date=None, hour=None, style="default")
 
     # Convert the figures to JSON ( PlotlyJSONEncoder appropriately converts pandas, datetime, etc)
     # objects to their JSON equivalents
-    json_data = json.dumps(to_send, cls=plt_u.PlotlyJSONEncoder)
+    json_data = json.dumps(to_send)
+    json_data = json_data.replace('NaN', 'null')
     return json_data
 
 
 @app.route("/get_graph_layout/<string:style>")
 def define_layout(style):
     layout_graph = hmm_ap.get_layout(style)
-    json_data = json.dumps(layout_graph, cls=plt_u.PlotlyJSONEncoder)
+    json_data = json.dumps(layout_graph)
     return json_data
 
+
+@app.route('/temp', methods=['GET'])
+def temp():
+    resp = tmp.empty_temp_files(1)
+    return jsonify(str(resp) + " eliminados!")
+
+
+@app.route('/tabla', methods=['GET'])
+def show_table():
+    url = request.args.get('url')
+    param = request.args.get('param')
+    obj = request.args.get('obj')
+    config = request.args.get('config')
+    if param != "":
+        url = url + "/" + param
+
+    if url is None and obj is None:
+        return jsonify(dict(error="Nada que mostrar"))
+
+    tb_data = None
+    title = str()
+
+    if obj is not None:
+        tb_data = json.loads(obj)
+
+    if config is not None:
+        try:
+            config = ast.literal_eval(config)
+        except Exception as e:
+            return jsonify(dict(error='Error en la definición de la configuración ' + str(e)))
+        if 'title' in config.keys():
+            title = config['title']
+
+    return render_template('pages/tabla.html', title=title, tb_data=tb_data, url=url, config=config)
+
+
+@app.route("/tendencia_reserva")
+def tendencia_reserva():
+    title = "Tendencia de la reserva rodante"
+    return render_template('pages/tendencia_reserva.html', title=title)
+
+@app.route("/cargabilidad_lineas")
+def cargabilidad_lineas():
+    title = "Tendencia de la reserva rodante"
+    return render_template('pages/hierarchical_edge.html', title=title)
 
 # ______________________________________________________________________________________________________
 # __________________________________ WEB SERVICES FUNCTIONS ____________________________________________
@@ -281,7 +383,6 @@ def define_layout(style):
 @app.route("/informe_semanal")
 @app.route("/informe_semanal/<string:init_date>/<string:end_date>")
 def call_service(init_date=None, end_date=None):
-
     if end_date is None:
         end_date = datetime.datetime.now()
         end_date = end_date.strftime("%Y-%m-%d")
@@ -293,7 +394,7 @@ def call_service(init_date=None, end_date=None):
     to_send = [{'FechaInicio': init_date, 'FechaFin': end_date}]
 
     response = requests.get('http://dop-wkstaado/CENSOLServices/PresentacionSemanal/',
-                         auth=('rsanchez', 'samweb'), params=to_send)
+                            auth=('rsanchez', 'samweb'), params=to_send)
     data = response.json()
 
     return jsonify(data)
@@ -342,42 +443,37 @@ def get_snapshot(tag_id):
 
 @app.route("/cal/<string:cal_id_function>")
 @app.route("/cal/<string:cal_id_function>/<string:parameters>")
-def get_cal(cal_id_function, parameters=None):      # id_encrypt=None
-    try:
-        method_to_call = getattr(cal, cal_id_function)
+def get_cal(cal_id_function, parameters=None):  # id_encrypt=None
+
+
+    method_to_call = getattr(cal, cal_id_function)
+    if parameters is None:
+        result = method_to_call()
+    else:
+        params = parameters.split("&")
+        result = method_to_call(*params)
+
+    if isinstance(result, dict):
         if parameters is None:
-            result = method_to_call()
+            result['id'] = '/cal/' + cal_id_function
         else:
-            params = parameters.split("&")
-            result = method_to_call(*params)
+            result['id'] = '/cal/' + cal_id_function + "/" + str(parameters)
 
-        if isinstance(result, dict):
-            if parameters is None:
-                result['id'] = '/cal/' + cal_id_function
-            else:
-                result['id'] = '/cal/' + cal_id_function + "/" + str(parameters)
+    if isinstance(result, pd.DataFrame):
+        result.index = [str(x) for x in result.index]
+        for orient in ["columns", "records", "index", "split", "values"]:
+            try:
+                result = result.to_json(orient=orient)
+                break
+            except Exception as e:
+                print(e)
+                pass
 
-        if isinstance(result, pd.DataFrame):
-            result.index = [str(x) for x in result.index]
-            for orient in ["columns", "records", "index", "split", "values"]:
-                try:
-                    result = result.to_json(orient=orient)
-                    break
-                except Exception as e:
-                    print(e)
-                    pass
-
-            resp = Response(response=result,
-                            status=200,
-                            mimetype="application/json")
-            return resp
-        return jsonify(result)
-
-    except Exception as e:
-        print(e)
-        msg = "[get_cal] [{0}] There is an error in module calc".format(cal_id_function)
-        print("[" + script_path + "] \t" + msg)
-        return jsonify({"error": msg})
+        resp = Response(response=result,
+                        status=200,
+                        mimetype="application/json")
+        return resp
+    return jsonify(result)
 
 
 @app.route("/con/<string:cons_id_function>")
@@ -412,7 +508,7 @@ def get_cons(cons_id_function, parameters=None, id_encrypt=None):
 @app.route("/download/pronostico/<string:description>/", methods=['GET'])
 @app.route("/download/pronostico/<string:description>", methods=['GET'])
 @app.route("/download/pronostico", methods=['GET'])
-def download_pronostico_file(description, date=None, hour=None):        # style="default"
+def download_pronostico_file(description, date=None, hour=None, Excel_file=True):  # style="default"
     if date is None:
         date = datetime.datetime.now().strftime("%Y-%m-%d")
     if hour is None:
@@ -460,11 +556,113 @@ def download_pronostico_file(description, date=None, hour=None):        # style=
         dict_result[ix] = dict_result.pop(col)
 
     name_file = "pron_" + str_date_ini
-    return excel.make_response_from_dict(dict_result, file_type="xlsx", status=200, file_name=name_file)
+    if Excel_file:
+        return excel.make_response_from_dict(dict_result, file_type="xlsx", status=200, file_name=name_file)
+    else:
+        return df_result
+
+
+@app.route("/download/reporte-pronostico/<string:year>/<string:month>/<string:description>/", methods=['GET'])
+@app.route("/download/reporte-pronostico", methods=['GET'])
+def download_reporte_pronostico(year=None, month=None, description=None, Excel_file=True):  # style="default"
+    import calendar as cld
+    dt_now = datetime.datetime.now()
+
+    if year is None:
+        year = dt_now.year
+    if month is None:
+        month = dt_now.month - 1
+    if description is None:
+        description = "Demanda Nacional del Ecuador"
+
+    n_day, lst_day = cld.monthrange(int(year), int(month))
+
+    datetime_ini = datetime.datetime.strptime(str(year) + "-" + str(month) + "-" + "1", "%Y-%m-%d")
+    datetime_fin = datetime.datetime.strptime(str(year) + "-" + str(month) + "-" + str(lst_day), "%Y-%m-%d")
+    date_range = pd.date_range(start=datetime_ini, end=datetime_fin, freq="D")
+
+    valid_range = [datetime_ini, datetime_fin + datetime.timedelta(days=30)]
+    tmp_name = "download_reporte_pronostico_" + str(date_range[0]) + str(date_range[-1]) + ".pkl"
+    tmp_file = tmp.retrieve_file(tmp_name, datetime_ini)
+    if tmp_file is None:
+
+        df_result = pd.DataFrame()
+        for d in date_range:
+            df_i = download_pronostico_file(description, str(d._date_repr), "23:30:00", Excel_file=False)
+            df_result = df_result.append(df_i)
+
+        tmp.save_variables(tmp_name, df_result, valid_range)
+
+    else:
+        df_result = tmp_file
+
+    dict_result = df_result.to_dict('list')
+    dict_result['0_Fecha'] = [str(x) for x in df_result.index]
+    columns = ['Despacho programado', 'min', 'max', 'expected', 'real time']
+    ind = ['1_Despacho programado', '7_Dmin estimada', '6_Dmax estimada', '5_Demanda esperada', '2_Demanda real']
+    for ix, col in zip(ind, columns):
+        dict_result[ix] = dict_result.pop(col)
+
+    name_file = "pron_" + datetime_ini.strftime("%Y-%m-%d") + "_" + datetime_fin.strftime("%Y-%m-%d")
+
+    if Excel_file:
+        return excel.make_response_from_dict(dict_result, file_type="xlsx", status=200, file_name=name_file)
+    else:
+        return df_result
+
+
+@app.after_request
+def after_request(response):
+    """ Logging after every request. """
+    # This avoids the duplication of registry in the log,
+    # since that 500 is already logged via @app.errorhandler.
+    if response.status_code != 500:
+        ts = strftime('[%Y-%b-%d %H:%M]')
+        logger.error('%s %s %s %s %s %s',
+                      ts,
+                      request.remote_addr,
+                      request.method,
+                      request.scheme,
+                      request.full_path,
+                      response.status)
+    return response
+
+
+@app.errorhandler(Exception)
+def exceptions(e):
+    traceback.print_exc()
+
+    """ Logging after every Exception. """
+    ts = strftime('[%Y-%b-%d %H:%M]')
+    tb = traceback.format_exc()
+    logger.error('%s %s %s %s %s 5xx INTERNAL SERVER ERROR\n%s',
+                  ts,
+                  request.remote_addr,
+                  request.method,
+                  request.scheme,
+                  request.full_path,
+                  tb)
+    return "Internal Server Error", 500
 
 
 if __name__ == '__main__':
     excel.init_excel(app)
-    app.run(host='10.30.2.45', port=80)
+    # maxBytes to small number, in order to demonstrate the generation of multiple log files (backupCount).
+    handler = RotatingFileHandler('C:/GOP_WebServer2.log', maxBytes=10000, backupCount=3)
+    # getLogger(__name__):   decorators loggers to file + werkzeug loggers to stdout
+    # getLogger('werkzeug'): decorators loggers to file + nothing to stdout
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.ERROR)
+    logger.addHandler(handler)
+    app.run(host='10.30.2.45', port=80, debug=True)     # threaded=True
+    # app.run(port=80, debug=True)     # threaded=True
     # app.run(host='127.0.0.1', port=5000)
     # app.run()
+
+handler = RotatingFileHandler('C:/GOP_WebServer2.log', maxBytes=10000, backupCount=3)
+# getLogger(__name__):   decorators loggers to file + werkzeug loggers to stdout
+# getLogger('werkzeug'): decorators loggers to file + nothing to stdout
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.ERROR)
+logger.addHandler(handler)
+
