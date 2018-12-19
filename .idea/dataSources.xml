@@ -10,13 +10,18 @@
         <property name="applicationName" value="DataGrip" />
       </driver-properties>
     </data-source>
-    <data-source source="LOCAL" name="QCITBVWBDCL3" uuid="69df0fe5-04fa-4393-9cff-f98bdee22a39">
-      <driver-ref>sqlserver.ms</driver-ref>
+    <data-source source="LOCAL" name="QCITBVWBDCL3_new" uuid="2119ea02-0cea-47cc-8305-b9877209614f">
+      <driver-ref>sqlserver.jtds</driver-ref>
       <synchronize>true</synchronize>
-      <jdbc-driver>com.microsoft.sqlserver.jdbc.SQLServerDriver</jdbc-driver>
-      <jdbc-url>jdbc:sqlserver://QCITBVWBDCL3\mssqlserver;database=sivo</jdbc-url>
+      <jdbc-driver>net.sourceforge.jtds.jdbc.Driver</jdbc-driver>
+      <jdbc-url>jdbc:jtds:sqlserver://QCITBVWBDCL3/SIVO;instance=mssqlserver</jdbc-url>
       <driver-properties>
         <property name="applicationName" value="DataGrip" />
+        <property name="appName" value="DataGrip" />
+        <property name="loginTimeout" value="30" />
+        <property name="trustServerCertificate" value="false" />
+        <property name="encrypt" value="true" />
+        <property name="hostNameInCertificate" value="*.database.windows.net" />
       </driver-properties>
     </data-source>
   </component>

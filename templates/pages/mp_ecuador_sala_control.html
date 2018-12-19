@@ -41,7 +41,12 @@
                 style="font-size: 14pt; background: transparent">
         </button>
 
-         <button class="glyphicon glyphicon-screenshot btn" title="Nivel provincial" onclick="main('provincial');"
+        <button class="glyphicon glyphicon-screenshot btn" title="Nivel provincial" onclick="main('provincial');"
+                style="font-size: 14pt; background: transparent">
+        </button>
+
+        <button class="glyphicon glyphicon glyphicon-asterisk btn" title="Cargabilidad lineas 138 - 230 kV"
+                onclick="window.open('/c_lineas');"
                 style="font-size: 14pt; background: transparent">
         </button>
 
@@ -68,13 +73,13 @@
         <div id="panel_2"  class="float_container" style="top: 20%; left: 1%; width: 20em; height: 6em">
           <a id="detalle_generacion" class="float_title_white" style="width: 100%"
             title="Click para ver listado de generación en línea"
-          > GENERACIÓN TOTAL </a>
+          >  GENERACIÓN TOTAL </a>
             <div class="float_value_white" style="width: 100%"> <span id="gen_total_mw"> ------ </span> MW</div>
         </div>
 
         <div id="panel_3"  class="float_container" style="top: 20%; left: 24em; width: 20em; height: 6em">
           <a id="link_indisponibilidad" class="float_title_white"
-             style="width: 100%" title="Click para ver novedades de indisponibilidad"
+             style="width: 100%" title="Click para ver detalles de disponibilidad"
           > RESERVA RODANTE</a>
             <a class="float_value_white" style="width: 100%"
                href="/tendencia_reserva"
@@ -98,17 +103,17 @@
         </div>
 
         <div id="panel_s1"  class="float_container" style="top: 50%; left: 74%; width: 8em; height: 12em">
-          <div class="float_title_white" style="width: 100%"> 500 kV </div>
+          <a id="c_500" class="float_title_white"  style="width: 100%"> 500 kV </a>
             <div class="float_value_white" style="width: 100%"> <span id="sub_500_total"> 4 </span></div>
         </div>
 
         <div id="panel_s2"  class="float_container" style="top: 50%; left: 82%; width: 8em; height: 12em">
-          <div class="float_title_white" style="width: 100%"> 230 kV </div>
+          <a id="c_230" class="float_title_white"  style="width: 100%"> 230 kV </a>
             <div class="float_value_white" style="width: 100%"> <span id="sub_230_total"> 26 </span></div>
         </div>
 
         <div id="panel_s3"  class="float_container" style="top: 50%; left: 90%; width: 8em; height: 12em">
-          <div class="float_title_white" style="width: 100%"> 138 kV </div>
+          <a id="c_138"  class="float_title_white"  style="width: 100%"> 138 kV </a>
             <div class="float_value_white" style="width: 100%"> <span id="sub_138_total"> 54 </span></div>
         </div>
 
@@ -161,19 +166,19 @@
     // When the user clicks on <span> (x), close the modal
     span.onclick = function() {
         modal.style.display = "none";
-    }
+    };
 
     // When the user clicks anywhere outside of the modal, close it
     window.onclick = function(event) {
-        if (event.target == modal) {
+        if (event.target === modal) {
             modal.style.display = "none";
         }
     };
     timestamp = time_now();
-    url_indisp = "/tabla?url=/cal/detalle_de_indisponibilidad&param=" + timestamp + '&' + timestamp +
+    url_indisp = "/tabla?url=/cal/detalle_de_disponibilidad&param=" + timestamp + '&' + timestamp +
         "&config={'title':'Disponibilidad de unidades', " +
-        " 'orden':['EVENTO_FECHA', 'EMPRESA', 'CENTRAL', 'ID', 'POT_EFECTIVA', 'POT_DISPONIBLE', 'DESCRIPCION' ], " +
-        " 'nombres':['ÚLTIMO EVENTO', 'EMPRESA', 'CENTRAL', 'CODIGO UNIDAD', 'POT EFECTIVA', 'POT DISPONIBLE', 'DESCRIPCIÓN' ], " +
+        " 'orden':['EVENTO_FECHA', 'EMPRESA', 'CENTRAL', 'ID', 'POT_EFECTIVA', 'POT_DISPONIBLE', 'Potencia', 'DESCRIPCION' ], " +
+        " 'nombres':['ÚLTIMO EVENTO', 'EMPRESA', 'CENTRAL', 'CODIGO UNIDAD', 'POT EFECTIVA', 'POT DISPONIBLE','POT ACTUAL' ,'DESCRIPCIÓN' ], " +
         " 'T':1, 'I':1}";
     d3.select("#link_indisponibilidad")
         .on('click', function(d) {
@@ -195,6 +200,32 @@
             url_generacion,
                 '_blank', 'toolbar=no, location=no, status=no, menubar=no,scrollbars=yes,'
                                + ' resizable=yes, width=1100px, height=550px'
+            );
+        });
+
+    let opts = "'toolbar=no, location=yes, status=no, menubar=no,scrollbars=yes,' resizable=yes, width=800px, height=800px'"
+    url_c = "/cargabilidad_lineas/";
+    d3.select("#c_230")
+        .on('click', function(d) {
+            window.open(
+            url_c + "230",
+                '_blank', opts
+            );
+        });
+
+    d3.select("#c_138")
+        .on('click', function(d) {
+            window.open(
+            url_c + "138",
+                '_blank', opts
+            );
+        });
+
+     d3.select("#c_500")
+        .on('click', function(d) {
+            window.open(
+            url_c + "500",
+                '_blank', opts
             );
         });
 

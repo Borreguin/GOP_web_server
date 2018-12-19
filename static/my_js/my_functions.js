@@ -18,8 +18,9 @@ let ct = new Date();
 let options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
 let current_timestamp = ct.toLocaleDateString("es-US",options) + ", " + ct.toLocaleTimeString();
 let bar_size = 160;
-let w = $(document).width();
-let h = $(document).height();
+//let w = $(document).width();
+let w = document.documentElement["clientWidth"];
+let h = document.documentElement["clientHeight"];
 let height =  Math.max(Math.min(h, 950), 300) - margin.top - margin.bottom - bar_size;
 let width = Math.max(Math.min(w, 1200), 500) - margin.left - margin.right;
 

@@ -1,3 +1,15 @@
+""""
+    Created by Roberto Sánchez A, based on his Master Thesis:
+    "A proposed method for unsupervised anomaly detection for a multivariate building dataset "
+    University of Bern/Neutchatel/Fribourg - 2017
+    Any copy of this code should be notified at rg.sanchez.a@gmail.com
+    to avoid intellectual property's problems.
+
+    Not details about this code are included, if you need more information. Please contact the email above.
+    "My work is well done to honor God at any time" R Sanchez A.
+    Mateo 6:33
+"""
+
 # This is an excellent example of scatter
 # could lead in memory problems due the big size of the dataSet
 import os
@@ -14,6 +26,7 @@ n_comp_min = 35
 n_comp_max = 60
 n_interaction = 5
 n_col_p = 24    # allow pivot if the number of columns is less than 'n_col_p'
+
 
 def d_time(time_reference):
     return time.time() - time_reference

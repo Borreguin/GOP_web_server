@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en" style="height: 99%">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/my_css/hierarchical_edge.css" >
+    <script type="text/javascript" src="/static/js_lib/d3.v4.js"></script>
+    <script type="text/javascript" src="/static/js_lib/queue.js"></script>
+    <script type="text/javascript" src="/static/my_js/hierarchical_edge.js"></script>
+
+</head>
+<body style="height: 100%; width: 99%">
+    <div id="grid_1" class="black_background" style="height: 100%; width: 50%; float: right"> </div>
+    <div id="grid_2" class="black_background" style="height: 100%; width: 50%; float: left"> </div>
+    <script>
+        let h = document.getElementById('grid_1').offsetHeight;
+        let w = document.getElementById('grid_1').offsetWidth;
+        let url_1 = '/cal/datos_cargabilidad_lineas/138' ;
+        let url_2 = '/cal/datos_cargabilidad_lineas/230' ;
+        let time_minutes = 1;
+
+                   // Define the div for the tooltip
+        let div = d3.select("body")
+            .append("div")
+            .attr("id", "tooltip")
+            .attr("class", "tooltip")
+            .style("opacity", 0);
+
+
+
+        cargabilidad_voltajes();
+
+        function cargabilidad_voltajes(){
+            queue()
+                .defer(d3.json,url_1)
+                .defer(d3.json,url_2)
+                .await(function (error, graph_data_1, graph_data_2) {
+                    if(error) throw error;
+                    draw_hierarchical_edge('grid_1', h, w, graph_data_1);
+                    draw_hierarchical_edge('grid_2', h, w, graph_data_2);
+                });
+            setTimeout(cargabilidad_voltajes, time_minutes*1000*60);
+        }
+
+
+    </script>
+</body>
+</html>

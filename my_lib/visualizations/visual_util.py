@@ -5,13 +5,13 @@ Mateo633
 """
 
 # from plotly import tools  # to do subplots
-import plotly.offline as py
-import cufflinks as cf
-import plotly.graph_objs as go
-from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
+# import plotly.offline as py
+# import cufflinks as cf
+# import plotly.graph_objs as go
+# from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
 
 # init_notebook_mode(connected=False)
-cf.set_config_file(offline=True, world_readable=True, theme='ggplot')
+# cf.set_config_file(offline=True, world_readable=True, theme='ggplot')
 
 
 def get_stacked_layout():

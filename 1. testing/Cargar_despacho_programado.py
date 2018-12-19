@@ -13,12 +13,14 @@ import sqlalchemy as sql_a
 gop_svr = op.GOPserver()
 
 """ Variables por defecto: """
-layout_path_file = "S:/Aplicaciones Procesos/Aplicaciones SIVO/DATOSPROG_PLANTILLA.xlsx"
+# layout_path_file = "S:/Aplicaciones Procesos/Aplicaciones SIVO/DATOSPROG_PLANTILLA.xlsx"
+layout_path_file = r"\\qcitbfwnas01\GOP\SAO\UGIE\AÑO 2018\Aplicaciones Procesos\Aplicaciones SIVO\DATOSPROG_PLANTILLA.xlsx"
 path_result_file = "P:/Despacho/DP_yyyymmdd.xlsx"
 despacho_path_file = "M:/Despacho Prog/Pred_{0}.xlsx"
 redespacho_path_file = "M:/Redespachos/A Ejecutarse/R{0}_{1}.xls"
 # mem_file_path_file =  "M:/Genemp/Año2018/0718/25/DESPACHOPROG_2018-07-25.xlsx"
-prog_file_path_file = "M:/Genemp/AñoYYYY/mmyy/dd/DESPACHOPROG_YYYY-mm-dd.xlsx"
+# prog_file_path_file = "M:/Genemp/AñoYYYY/mmyy/dd/DESPACHOPROG_YYYY-mm-dd.xlsx"
+prog_file_path_file = r"\\qcitbfwnas01\GOP\SAO\UGIE\AÑO YYYY\Genemp\mmyy\dd\DESPACHOPROG_YYYY-mm-dd.xlsx"
 
 id_columns = ['Empresa', 'UNegocio', 'Central', 'GrupoGeneracion', 'Unidad']
 desp_columns = ['EsRedespacho', 'NumRedespacho', 'HoraVigencia']
@@ -86,6 +88,10 @@ def run_process_for(dt_date):
             if n_redespacho == 1:
                 msgs += "\n\n[Leer redespachos]: \t No hay redespachos para la fecha " + str(fecha_n)
             break
+        if hora_vigente == "No hora vigente identificada":
+            msgs += msg_n + "\n error: redespacho no subido: No hora vigente identificada"
+            break
+
         else:
             # La hora 24 del día n (redespacho)
             msg_hora_24h = "\n[Hora 24h]: \t \t Incluyendo hora 24h del redespacho {0} de la fecha {1}" \
@@ -173,9 +179,9 @@ def run_process_for(dt_date):
     else:
         title = "[SIVO]Despacho programado subido automáticamente: [Fecha: {0}]".format(dt_date)
     send_mail(msg_to_send=msgs, subject=title)
-    print(msgs.encode('ascii', 'ignore'))
+    # print(msgs.encode('ascii', 'ignore'))
 
-    return True
+    return title, msgs
 
 
 def obtener_hora_24_de_ultimo_despacho(fecha_t):
@@ -235,6 +241,7 @@ def read_redespacho(dt_date, n_redespacho):
     else:
         df_info_total = df_info_total.drop([0, 1])[:24]
         valid_columns = [x for x in df_info_total.columns if 'Unnamed' not in x]
+        valid_columns = [x for x in valid_columns if 'HORA.1' not in x]
         df_info_total = df_info_total[valid_columns]
         df_info_total.index = pd.date_range(dt_date, dt_date + pd.Timedelta('24 H'), freq="60T", closed='right')
         df_info_total.fillna(0, inplace=True)
@@ -250,12 +257,37 @@ def read_redespacho(dt_date, n_redespacho):
     return code_list, thermo_list, df_info_total, hora_vigente, msg_i
 
 
+def convert_str_to_time(str_time, ls_format=None):
+    if ls_format is None:
+        ls_format = ["%H:%M:%S", "%H:%M", "%Y-%m-%d %H:%M:%S"]
+    dt_resp = None
+    for fmt in ls_format:
+        try:
+            dt_resp = dt.datetime.strptime(str_time, fmt)
+            break
+        except ValueError:
+            pass
+    return dt_resp
+
+
+
 def get_hora_vigente(rcho_path_file):
     df_info = read_excel_file(rcho_path_file, skiprows=8, sheet_name="REDESPACHO")
-    hora_vigente = df_info.columns[3]
-    if "Unnamed" in hora_vigente:
-        hora_vigente = df_info.columns[4]
-    return hora_vigente
+    hora_vigente = "00:00"
+    for ix in list(range(2, 6)):
+        hora_vigente = df_info.columns[ix]
+        if isinstance(hora_vigente, dt.time):
+            break
+        else:
+            hora_vigente = convert_str_to_time(hora_vigente)
+            if hora_vigente is not None:
+                hora_vigente = hora_vigente.strftime("%H:%M:%S")
+                break
+
+    if "Unnamed" not in str(hora_vigente):
+        return hora_vigente
+    else:
+        return "No hora vigente identificada"
 
 
 def run_despacho(dt_date, df_info_total, code_list, thermo_list, saveSIVO=True,
@@ -291,7 +323,7 @@ def run_despacho(dt_date, df_info_total, code_list, thermo_list, saveSIVO=True,
 
     # Creando los valores de fecha y hora:
     fecha_values = [x.strftime('%Y-%m-%d') for x in df_despacho.index]
-    hora_values = [x.strftime('%H:%M:%S') for x in df_despacho.index]
+    hora_values = [x.strftime('%H:%M') for x in df_despacho.index]
 
     # Iniciando el dataframe de respuesta:
     df_result = pd.DataFrame(columns=table_columns)
@@ -318,8 +350,6 @@ def run_despacho(dt_date, df_info_total, code_list, thermo_list, saveSIVO=True,
         for col_i in desp_columns:
             # df_i[col_i] = tipo_de_despacho[col_i]
             df_i[col_i] = df_info_total[col_i]
-
-
 
         # Llenando valores de la tabla:
         df_i['Fecha'] = fecha_values
@@ -401,8 +431,9 @@ def send_mail(msg_to_send, subject):
 
     # setup the parameters of the message
     password = "SAOGMAIL"
+    recipients = ["ugie@cenace.org.ec", "rsanchez@cenace.org.ec"]
     msg['From'] = "aadopost.cenace@gmail.com"
-    msg['To'] = "ugie@cenace.org.ec"
+    msg['To'] = ",".join(recipients)
     msg['Subject'] = subject
 
     # add in the message body
@@ -421,7 +452,7 @@ def send_mail(msg_to_send, subject):
 
     server.quit()
 
-    print("Mensaje enviado a: %s:" % (msg['To']))
+    print("Detalles enviados a: %s:" % (msg['To']))
 
 
 def save_result_to_excel(df_result, path_file, **kwargs):
@@ -445,7 +476,7 @@ def subir_a_SIVO(df_result):
         list_generation_group = list(set(df_result["GrupoGeneracion"]))
         list_generation_group.sort()
 
-        err_i = 0
+        err_i, exp = 0, None
         entities = set()
         for group in list_generation_group:
             try:
@@ -459,7 +490,7 @@ def subir_a_SIVO(df_result):
 
         if err_i == len(list_generation_group):
             msg += "\n[Subir a DB SIVO]: \t Despacho programado ya existente"
-            print(exp)
+            pass
         elif len(entities) > 0:
             msg += "\n[Subir a DB SIVO]: \t Las siguientes entidades han sido añadidas al despacho programado: \n" + str(entities)
         else:
@@ -471,6 +502,7 @@ def get_info_despacho(dt_date, path_file):
     df = read_excel_file(path_file, skiprows=8, sheet_name="DESPACHO")
     df = df.drop([0, 1])[:24]
     valid_columns = [x for x in df.columns if 'Unnamed' not in x]
+    valid_columns = [x for x in valid_columns if 'HORA.1' not in x]
     df = df[valid_columns]
     df.index = pd.date_range(dt_date, dt_date + pd.Timedelta('24 H'), freq="60T", closed='right')
     df.fillna(0, inplace=True)
@@ -496,6 +528,7 @@ def get_mapping_info(l_path_file):
     df_map = pd.read_excel(l_path_file, sheet_name="MAPA")
     df_etiquetas_especiales = pd.read_excel(l_path_file, sheet_name="ADICIONALES")
     valid_columns = [x for x in df_map.columns if 'Unnamed' not in str(x)]
+    valid_columns = [x for x in valid_columns if 'HORA.1' not in x]
     df_map = df_map[valid_columns]
     # df_map = df_map[df_map["HABILITADOR"] == 1]
     lst = df_etiquetas_especiales.T.values
@@ -518,6 +551,7 @@ def run_tie_macro(dt_date):
     path_file = "M:\Datos Predes\Resultado{0}.xls".format(dt_date.strftime("%d%m"))
     df = read_excel_file(path_file, skiprows=8)
     valid_columns = [x for x in df.columns if 'Unnamed' not in x]
+    valid_columns = [x for x in valid_columns if 'HORA.1' not in x]
     df = df[valid_columns]
 
     # existe transaccion
@@ -537,7 +571,7 @@ def read_excel_file(path_file, **kwargs):
     try:
         df = pd.read_excel(path_file, **kwargs)
     except Exception as e:
-        print(e)
+        pass
     return df
 
 
@@ -597,7 +631,7 @@ if __name__ == "__main__":
     if today:
         dt_today = dt.datetime.today().date()
     else:
-        dt_today = dt.datetime.strptime("2018-09-03", "%Y-%m-%d").date()
+        dt_today = dt.datetime.strptime("2018-11-12", "%Y-%m-%d").date()
     print("Empezando proceso por:" + str(dt_today))
     run_process_for(dt_today)
 

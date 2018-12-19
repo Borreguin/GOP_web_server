@@ -1,0 +1,72 @@
+{% extends "layouts/head_menu_navigation.html" %}
+
+{% block head_scripts %}
+    <!-- css icons --->
+    <!--link rel="stylesheet" type="text/css" href="/static/js_lib/font-awesome.min.css" /-->
+
+    <!--link rel="stylesheet" href="/static/js_lib/font-awesome.min.css" -->
+     <!-- Plotly.js -->
+    <script type="text/javascript" src="/static/js_lib/plotly-latest.min.js"></script>
+    <script type="text/javascript" src="/static/js_lib/d3.v3.5.17.js"></script>
+    <!-- Herramienta para actualizar valores en tiempo real -->
+    <script type="text/javascript" src="/static/my_js/pool.js"></script>
+    <script type="text/javascript" src="/static/js_lib/bootstrap-datepicker/js/bootstrap-datepicker.js"></script>
+    <script type="text/javascript" src="/static/js_lib/bootstrap-datepicker/js/locales/bootstrap-datepicker.es.js"></script>
+    <link rel="stylesheet" href="/static/js_lib/bootstrap-datepicker/css/bootstrap-datepicker3.css" >
+
+
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid" style="height: 99%; padding: 0; margin-top: -5px;">
+
+        <div id="content" class="col-sm-2 chart-wrapper" style="padding-right: 0; padding-top: 4px">
+          <label class="switch">
+              <input id="modo" type="checkbox" checked onclick="demanda_modo()">
+              <span class="slider round"></span>
+          </label>
+          <span style="position: relative; left: 25%;">SIVO / SCADA</span>
+        </div>
+        <div id="content" class="col-sm-2 chart-wrapper" style="padding-right: 0; padding-top: 4px">
+          <label class="switch">
+              <input type="checkbox" onchange="delete_temp()">
+              <span class="slider round"></span>
+          </label>
+          <span style="position: relative; left: 25%;">Eliminar temporales</span>
+        </div>
+
+    </div>
+
+{% endblock %}
+
+{% block body_scripts %}
+
+    <script>
+        leer_demanda_modo();
+        function delete_temp(){
+            d3.json('/delete_temp', function (resp) {
+                    window.alert("Se han eliminado "+ resp + "archivos temporales");
+            });
+        }
+        function demanda_modo(){
+            let modo = document.getElementById("modo").checked;
+            if(modo===true){
+                d3.json('/demanda_en_modo/scada', function (resp) {
+                    window.alert(resp);
+                });
+            }else{
+                d3.json('/demanda_en_modo/sivo', function (resp) {
+                    window.alert(resp);
+                });
+            }
+        }
+        function leer_demanda_modo(){
+            d3.json('/leer_modo_demanda', function (resp) {
+                document.getElementById("modo").checked = (resp === "scada");
+            });
+        }
+
+    </script>
+
+
+{% endblock %}

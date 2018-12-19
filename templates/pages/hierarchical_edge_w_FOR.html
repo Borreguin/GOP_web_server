@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en" style="height: 99%">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/my_css/hierarchical_edge.css" >
+    <link rel="stylesheet" href="/static/my_css/bar_FOR.css" >
+    <script type="text/javascript" src="/static/js_lib/d3.v4.js"></script>
+    <script type="text/javascript" src="/static/js_lib/queue.js"></script>
+    <script type="text/javascript" src="/static/js_lib/plotly-latest.min.js"></script>
+    <script type="text/javascript" src="/static/my_js/hierarchical_edge.js"></script>
+    <script type="text/javascript" src="/static/my_js/graph_FOR.js"></script>
+    <script type="text/javascript" src="/static/my_js/my_functions.js"></script>
+        <script>
+            let voltaje = {{ voltaje }};
+        </script>
+</head>
+<body style="height: 100%">
+    <div id="grid_1" class="black_background" style="height: 100%; width: 65%; float: left"> </div>
+    <div id="grid_2"  style="height: 100%; width: 35%; float: right"></div>
+    <script>
+
+        let url = '/cal/datos_cargabilidad_lineas/' + voltaje;
+        let time_minutes = 1;
+
+                   // Define the div for the tooltip
+        let div = d3.select("body")
+            .append("div")
+            .attr("id", "tooltip")
+            .attr("class", "tooltip")
+            .style("opacity", 0);
+
+        graficar_FOR();
+        cargabilidad_voltajes();
+
+        function cargabilidad_voltajes(){
+            queue()
+                .defer(d3.json,url)
+                .await(function (error, graph_data) {
+                    if(error) throw error;
+                    draw_hierarchical_edge('grid_1', graph_data);
+                });
+            setTimeout(cargabilidad_voltajes, time_minutes*1000*60);
+        }
+
+        function graficar_FOR(){
+            let for_url = "/cal/consultar_for";
+            queue()
+                .defer(d3.json, for_url)
+                .await(function (error, graph_data) {
+                    if(error) throw error;
+                    let config = {
+                      voltaje: voltaje,
+                      n: 20
+                    };
+                    graph_FOR('grid_2', graph_data["Líneas"], config);
+                });
+        }
+
+
+    </script>
+</body>
+</html>

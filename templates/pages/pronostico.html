@@ -97,6 +97,14 @@
             <a id="update_icon" class="btn btn-default btn-lg" style="font-size: small; width: 100px">
              <span class="glyphicon glyphicon-open"></span> Actualizar
             </a>
+            <a>
+            <label class="switch">
+                <input id="modo" type="checkbox"
+                        onclick="demanda_modo()">
+                <span class="slider round"></span>
+                </label>
+                <span style="font-size: small; position: relative; left: 2%;">SCADA</span>
+            </a>
         </div>
     </div>
 
@@ -220,7 +228,7 @@
         let graph_data_global;
         let date_arg;
         let hour_arg;
-
+        leer_demanda_modo();
 
         // Selector de fecha
         $('#datepicker').datepicker({
@@ -244,7 +252,7 @@
                 .attr("href", url_excel);
 
             if( ct_date.toDateString() === today_date.toDateString()){
-                if(upd_w % 4 == 0){weather_update();}
+                if(upd_w % 4 === 0){weather_update();}
                 upd_w +=1 ;
             }else{
                 d3.select("#weather_now").style("display", "none");
@@ -450,6 +458,23 @@
         }
     }
 
+    function demanda_modo(){
+            let modo = document.getElementById("modo").checked;
+            if(modo===true){
+                d3.json('/demanda_en_modo/scada', function (resp) {
+                    window.alert(resp);
+                });
+            }else{
+                d3.json('/demanda_en_modo/sivo', function (resp) {
+                    window.alert(resp);
+                });
+            }
+        }
+    function leer_demanda_modo(){
+        d3.json('/leer_modo_demanda', function (resp) {
+            document.getElementById("modo").checked = (resp === "scada");
+        });
+    }
 
 
     </script>

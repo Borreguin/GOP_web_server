@@ -13,6 +13,8 @@ import requests
 import ast
 # import plotly.utils as plt_u
 import traceback
+from xlrd import open_workbook
+from xlutils.copy import copy
 
 from my_lib.PI_connection import pi_connect as osi
 from my_lib.calculations import calculos as cal
@@ -22,12 +24,13 @@ from my_lib.hmm import Cargar_despacho_programado as c_desp
 from my_lib.encrypt import library_encrypt as en
 from my_lib.visualizations import visual_util as vi
 from my_lib.temporal_files_manager import temporal_manager as tmp
+from my_lib.mongo_db_manager import mongo_handler as mgh
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 import binascii
-from flask import Flask, render_template, jsonify, Response
+from flask import Flask, render_template, jsonify, Response, redirect, send_from_directory
 import flask_excel as excel
 from flask_cors import CORS
 import json
@@ -62,7 +65,8 @@ file_dataPath = './hmm_application/data/'  # File data path
 def main_page():
     """ This is the MAIN PAGE of this Server Application"""
     # TODO: Create a default page
-    return 'Página principal en construcción'
+    # return 'Página principal en construcción'
+    return redirect("/map")
 
 
 """ A testing part ------------------------------------------------------------------------"""
@@ -136,6 +140,12 @@ def index():
 
 """ End testing part ------------------------------------------------------------------------"""
 """ PRODUCTION PART: Include new pages below this ___________________________________________"""
+
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'),
+                               'favicon.jpg', mimetype='image/vnd.microsoft.icon')
 
 
 @app.route("/map/<string:detail>")
@@ -212,6 +222,7 @@ def cargar_re_despacho(fecha):
 def forecasting(entity="menu", date=None, hour=None):
     msg = ""
     model_name, tag_name, description, data_name, datetime_ini, datetime_fin = None, None, None, None, None, None
+    links_demand = None
 
     if date is None:
         date = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -225,12 +236,17 @@ def forecasting(entity="menu", date=None, hour=None):
         hour = hour_dt.strftime("%H:%M:%S")
 
     try:
-        df_config = pd.read_excel("./hmm_application/config.xlsx")
+        df_config = pd.read_excel("./hmm_application/config.xlsx", sheet_name="web_page")
         df_config.set_index("entity", inplace=True)
         description = df_config.at[entity, 'description']
+        links_demand = list()
+        for url, text in zip(df_config.index, df_config["text"]):
+            link = dict(url='/pronostico/' + url + '/{0}/{1}'.format(date, hour), text=text)
+            links_demand.append(link)
+
     except Exception as e:
         print(e)
-        msg += "\n No existe la entidad: " + entity
+        msg += "\n No existe la entidad: " + entity + "en config"
 
     if msg != "":
         return msg
@@ -242,12 +258,19 @@ def forecasting(entity="menu", date=None, hour=None):
     notes = {'nt1': 'Información preliminar, actualizada cada 15 minutos, Fuente: SCADA - CENACE',
              'nt2': ''}
 
-    links_demand = [
-        {"url": '/pronostico/demanda-nacional/{0}/{1}'.format(date, hour), "text": "Nacional"},
-        {"url": '/pronostico/electrica-quito/{0}/{1}'.format(date, hour), 'text': "Quito"}
-    ]
     return render_template('pages/pronostico.html',
                            links=links_demand, title=title, titles=titles, notes=notes, date=date, hour=hour)
+
+
+@app.route("/pronostico/admin")
+def pronostico_admin():
+    return render_template('pages/pronostico_admin.html', title="Administración Pronóstico de la demanda")
+
+
+@app.route("/delete_temp")
+def delete_temp():
+    resp = tmp.empty_temp_files(1)
+    return jsonify(resp)
 
 
 @app.route("/pronostico-videowall/<string:entity>/<string:date>/<string:hour>")
@@ -272,7 +295,7 @@ def forecasting_videowall(entity="menu", date=None, hour=None):
         hour = hour_dt.strftime("%H:%M:%S")
 
     try:
-        df_config = pd.read_excel("./hmm_application/config.xlsx")
+        df_config = pd.read_excel("./hmm_application/config.xlsx", sheet_name="web_page")
         df_config.set_index("entity", inplace=True)
         description = df_config.at[entity, 'description']
     except Exception as e:
@@ -305,17 +328,38 @@ def graph_pronostico_demanda(description, date=None, hour=None, style="default")
         print(e, msg)
         return {'graph': {}, layout: {}}
 
-    df_config = pd.read_excel("./hmm_application/config.xlsx")
+    df_config = pd.read_excel("./hmm_application/config.xlsx", sheet_name="web_page")
     df_config.set_index("description", inplace=True)
     model_name = df_config.at[description, 'model_name']
     tag_name = df_config.at[description, 'tag']
     despacho = df_config.at[description, 'despacho']
     data_name = model_name.replace("hmm_", "")
+    entity = df_config.at[description, 'entity']
 
     hmm_modelPath_file = hmm_modelPath + model_name
     file_dataPath_file = file_dataPath + data_name
 
-    to_send = hmm_ap.graphic_pronostico_demanda(hmm_modelPath_file, file_dataPath_file, tag_name, despacho,
+    if entity == "demanda-nacional":
+        if leer_modo_demanda(True) == "scada":
+            df_tag = cal.demanda_nacional_desde_tag(datetime_ini, datetime_fin, "15m")
+            df_tag.index = pd.to_datetime(df_tag.index)
+        else:
+            df_tag = pd.DataFrame(index=pd.date_range(datetime_ini, datetime_fin, freq="15T"))
+            df_aux = cal.demanda_nacional_desde_sivo(datetime_ini, datetime_fin)
+            df_aux.index = pd.to_datetime(df_aux.index)
+            df_tag = pd.concat([df_tag, df_aux], axis=1).interpolate()
+
+    else:
+        """ Getting information from the PIserver """
+
+        pi_svr = osi.PIserver()
+        pt = osi.PI_point(pi_svr, tag_name)
+        time_range = pi_svr.time_range(datetime_ini, datetime_fin)
+        span = pi_svr.span("15m")  # Sampled in each 15 min
+        df_tag = pt.interpolated(time_range, span)
+        df_tag.index = pd.to_datetime(df_tag.index)
+
+    to_send = hmm_ap.graphic_pronostico_demanda(hmm_modelPath_file, file_dataPath_file, df_tag, despacho,
                                                 datetime_ini, datetime_fin, style)
 
     # Convert the figures to JSON ( PlotlyJSONEncoder appropriately converts pandas, datetime, etc)
@@ -325,17 +369,31 @@ def graph_pronostico_demanda(description, date=None, hour=None, style="default")
     return json_data
 
 
+@app.route("/demanda_en_modo/<string:modo>")
+def demanda_en_modo(modo):
+    success, msg = mgh.save_settings("demanda_en_modo", modo)
+    if success:
+        return jsonify("Datos de la demanda en modo: " + modo)
+    else:
+        return jsonify("Error: " + msg)
+
+
+@app.route("/leer_modo_demanda")
+def leer_modo_demanda(value=False):
+    success, config_dict = mgh.read_config()
+    if success and not value:
+        return jsonify(config_dict["demanda_en_modo"])
+    elif success and value:
+        return config_dict["demanda_en_modo"]
+    else:
+        return jsonify("error " + str(config_dict))
+
+
 @app.route("/get_graph_layout/<string:style>")
 def define_layout(style):
     layout_graph = hmm_ap.get_layout(style)
     json_data = json.dumps(layout_graph)
     return json_data
-
-
-@app.route('/temp', methods=['GET'])
-def temp():
-    resp = tmp.empty_temp_files(1)
-    return jsonify(str(resp) + " eliminados!")
 
 
 @app.route('/tabla', methods=['GET'])
@@ -372,10 +430,45 @@ def tendencia_reserva():
     title = "Tendencia de la reserva rodante"
     return render_template('pages/tendencia_reserva.html', title=title)
 
+
 @app.route("/cargabilidad_lineas")
-def cargabilidad_lineas():
-    title = "Tendencia de la reserva rodante"
-    return render_template('pages/hierarchical_edge.html', title=title)
+@app.route("/cargabilidad_lineas/")
+@app.route("/cargabilidad_lineas/<string:voltaje>")
+def cargabilidad_lineas(voltaje=None):
+    if voltaje is None:
+        voltaje = 500
+
+    voltaje = str(voltaje)
+    if voltaje in ["138", "230", "500"]:
+
+        title = "Cargabilidad " + voltaje + "kV"
+        return render_template('pages/hierarchical_edge.html', title=title, voltaje=voltaje)
+    else:
+        return "No existe datos para cargabilidad de " + voltaje + "kV"
+
+
+@app.route("/cargabilidad_lineas_for")
+@app.route("/cargabilidad_lineas_for/")
+@app.route("/cargabilidad_lineas_for/<string:voltaje>")
+def cargabilidad_lineas_for(voltaje=None):
+    if voltaje is None:
+        voltaje = 500
+
+    voltaje = str(voltaje)
+    if voltaje in ["138", "230", "500"]:
+
+        title = "Cargabilidad " + voltaje + "kV"
+        return render_template('pages/hierarchical_edge_w_FOR.html', title=title, voltaje=voltaje)
+    else:
+        return "No existe datos para cargabilidad de " + voltaje + "kV"
+
+
+@app.route("/c_lineas")
+@app.route("/c_lineas/")
+def c_lineas():
+    title = "Cargabilidad 230, 138 kV"
+    return render_template('pages/c_lineas.html', title=title)
+
 
 # ______________________________________________________________________________________________________
 # __________________________________ WEB SERVICES FUNCTIONS ____________________________________________
@@ -648,18 +741,19 @@ def exceptions(e):
 if __name__ == '__main__':
     excel.init_excel(app)
     # maxBytes to small number, in order to demonstrate the generation of multiple log files (backupCount).
-    handler = RotatingFileHandler('C:/GOP_WebServer2.log', maxBytes=10000, backupCount=3)
+    handler = RotatingFileHandler(os.path.join(script_path, 'logs', 'GOP_WebServer.log'), maxBytes=10000, backupCount=3)
     # getLogger(__name__):   decorators loggers to file + werkzeug loggers to stdout
     # getLogger('werkzeug'): decorators loggers to file + nothing to stdout
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.ERROR)
     logger.addHandler(handler)
-    app.run(host='10.30.2.45', port=80, debug=True)     # threaded=True
+    # app.run(host='10.30.2.45', port=80, debug=True)     # threaded=True
+    app.run(host='10.30.200.100', port=80, debug=True)     # threaded=True
     # app.run(port=80, debug=True)     # threaded=True
     # app.run(host='127.0.0.1', port=5000)
     # app.run()
 
-handler = RotatingFileHandler('C:/GOP_WebServer2.log', maxBytes=10000, backupCount=3)
+handler = RotatingFileHandler(os.path.join(script_path, 'logs', 'GOP_WebServer.log'), maxBytes=10000, backupCount=3)
 # getLogger(__name__):   decorators loggers to file + werkzeug loggers to stdout
 # getLogger('werkzeug'): decorators loggers to file + nothing to stdout
 logger = logging.getLogger(__name__)

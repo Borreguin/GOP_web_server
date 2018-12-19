@@ -1,3 +1,19 @@
+""""
+    Created by Roberto Sánchez A, based on the Master Thesis:
+    "A proposed method for unsupervised anomaly detection for a multivariate building dataset "
+    University of Bern/Neutchatel/Fribourg - 2017
+    Any copy of this code should be notified at rg.sanchez.a@gmail.com
+    to avoid intellectual property's problems.
+
+    Not details about this code are included, if you need more information. Please contact the email above.
+    "My work is well done to honor God at any time" R Sanchez A.
+    Mateo 6:33
+"""
+"""
+    Este proyecto ha sido desarrollado en la Gerencia de Operaciones de CENACE
+    Mateo633
+"""
+
 import datetime
 import pickle
 import time
@@ -9,6 +25,7 @@ import pandas as pd
 import json
 from hmmlearn.hmm import GaussianHMM
 from sklearn.externals import joblib
+import os
 
 # Función para imprimir con Markdown style:
 # from IPython.display import Markdown, display
@@ -185,8 +202,8 @@ def ordered_hmm_model(model, method='average', metric='euclidean'):
 
 
 def save_model_and_log(model, log_register, model_path, log_path, file_name):
-    file1 = model_path + file_name
-    file2 = log_path + file_name.replace(".pkl", ".json")
+    file1 = os.path.join(model_path, file_name)
+    file2 = os.path.join(log_path, file_name.replace(".pkl", ".json"))
 
     try:
         joblib.dump(model, filename=file1, compress=3, protocol=2)

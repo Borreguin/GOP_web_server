@@ -15,15 +15,25 @@ Los siguientes son requisitos para este servidor:
     - six	1.11.0	1.11.0
     - xlrd	1.1.0	1.1.0
     - SQLAlchemy	1.2.6	1.2.7
-    conda install -c conda-forge cufflinks-py
-    conda install -c conda-forge flask-excel
+    conda install -c conda-forge cufflinks-py -y
+    conda install -c conda-forge flask-excel -y
+    conda install -c anaconda xlutils -y
+    conda install -c anaconda pymongo -y
 
+
+command:
+conda install -c conda-forge tqdm
+conda install -y Flask Jinja2 MarkupSafe Werkzeug click itsdangerous numpy pandas pip
+conda install -y python-dateutil pytz setuptools six xlrd SQLAlchemy pymssql
+conda install -y ipyparallel
+pip install wfastcgi
+pip install hmmlearn
 
 Aplicativos adicionales:
 
     - PI-SDK (version 2014 mínimo)
     - AF-Client (version 2016 mínimo)
-    conda install pythonnet
+    conda install -c pythonnet pythonnet
     conda install wfastcgi
 
 Create sql-classes:
@@ -35,4 +45,5 @@ Handler Mappings:
     C:\ProgramData\Anaconda3\python.exe | C:\ProgramData\Anaconda3\Lib\site-packages\wfastcgi.py
 
 
-
+Fix problem when using plotly and IIS:
+C:\ProgramData\Anaconda3\lib\site-packages\plotly\optional_imports.py

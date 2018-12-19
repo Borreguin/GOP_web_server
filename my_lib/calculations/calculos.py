@@ -433,18 +433,12 @@ def demanda_nacional_desde_tag(ini_date=None, fin_date=None, delta=None):
     :param delta: string format: Ex: 10m
     :return:
     """
-    # calculo disponible en 2 minutos
-    dt_delta = dt.timedelta(minutes=2)
-    tmp_name = "calculos_demanda_nacional" + str(ini_date) + str(fin_date) + str(delta) + ".pkl"
-    tmp_file = tmp.retrieve_file(tmp_name, dt_delta)
-    if tmp_file is not None:
-        return tmp_file
 
     # tagname de demanda nacional
     path_config_file = script_path.replace('my_lib\\calculations', 'hmm_application\\config.xlsx')
     df_config = pd.read_excel(path_config_file)
-    df_config.set_index("description", inplace=True)
-    tag_name = df_config.at["Demanda Nacional del Ecuador", 'tag']
+    df_config.set_index("entity", inplace=True)
+    tag_name = df_config.at["demanda-nacional", 'tag']
     # tag_name = obtener_tag_name_por_descripcion("Demanda Nacional")
 
     # valores por defecto
@@ -461,7 +455,6 @@ def demanda_nacional_desde_tag(ini_date=None, fin_date=None, delta=None):
     df_demanda = pt.interpolated(time_range, span)
     df_demanda.rename(index=str, columns={tag_name: "Demanda nacional"}, inplace=True)
 
-    tmp.save_variables(tmp_name, df_demanda)
     return df_demanda
 
 
@@ -1632,11 +1625,29 @@ def detalle_de_indisponibilidad(ini_date=None, end_date=None):
     return df_indisponibilidad.T
 
 
-def detalle_de_disponibilidad(timestamp):
-    if timestamp is None:
-        timestamp = time_last_30_m()
+def detalle_de_disponibilidad(ini_date=None, end_date=None):
+    if ini_date is None:
+        ini_date = time_last_30_m()
+    if end_date is None:
+        end_date = ini_date
+    if isinstance(ini_date, str):
+        ini_date = convert_str_to_time(ini_date)
+    if isinstance(end_date, str):
+        end_date = convert_str_to_time(end_date)
 
-    df_indisponibilidad = detalle_de_indisponibilidad()
+    df_indisponibilidad = detalle_de_indisponibilidad(ini_date, end_date)
+    time_range = pi_svr.time_range(time_last_30_m(ini_date), time_last_30_m(end_date))
+    df_linea = generation_matrix(time_range)
+    df_linea.index = df_linea["U_Codigo"]
+    mask = df_linea["Potencia"] > 0
+    df_linea = df_linea[mask].T
+
+    set_int = set(df_linea.columns).intersection(df_indisponibilidad.columns)
+    df_indisponibilidad = df_indisponibilidad.append(df_linea.loc["Potencia"])
+    df_indisponibilidad = df_indisponibilidad[list(set_int)]
+    df_indisponibilidad.fillna(" ", inplace=True)
+
+    return df_indisponibilidad
 
 
 def flujo_de_lineas(nivel_voltaje, ini_date=None, end_date=None):
@@ -1658,8 +1669,8 @@ def flujo_de_lineas(nivel_voltaje, ini_date=None, end_date=None):
     df_detail["ID_circuito"] = [df_detail["CodigoLinea"].loc[x] + "_" + df_detail["Circuito"].loc[x]
                                 for x in df_detail.index]
     df_detail["CodigoMed"] = [df_detail["CodigoLinea"].loc[x] + "_" + df_detail["Circuito"].loc[x] + "_"
-                                + str(df_detail["TipoTag"].loc[x][-1])
-                                for x in df_detail.index]
+                              + str(df_detail["TipoTag"].loc[x][-1])
+                              for x in df_detail.index]
 
     time_range = pi_svr.time_range(ini_date, end_date)
 
@@ -1695,22 +1706,23 @@ def datos_cargabilidad_lineas(nivel_voltaje, ini_date=None, end_date=None):
         end_date = dt.datetime.now()
 
     df = flujo_de_lineas(nivel_voltaje, ini_date, end_date)
+    df = df.replace({np.nan: None})
     resp = [preparar_dict(df.loc[ix]) for ix in df.index]
     resp = [x for y in resp for x in y]
 
-    return resp
+    return dict(data=resp, settings=dict(max=df["Lim_Termico"].max(), min=df["Lim_Termico"].min()))
 
 
 def preparar_dict(serie):
     serie = serie.copy()
     select = ['count', 'mean', 'std', 'min', 'per_25', 'per_50', 'per_75', 'max',
-       'timestamp', 'current_value', 'quality',
-       'dif', 'Linea', 'Voltaje', 'Lim_MaxOperacion', 'Lim_OperacionContinuo',
-       'Lim_Termico', 'TAG']
+              'timestamp', 'current_value', 'quality',
+              'dif', 'Linea', 'Voltaje', 'Lim_MaxOperacion', 'Lim_OperacionContinuo',
+              'Lim_Termico', 'TAG']
     serie['timestamp'] = str(serie['timestamp'])
     s_destino = serie['NombreSubDestino']
     s_origen = serie['NombreSubOrigen']
-    circuito = serie['Circuito']
+    circuito = serie['ID_circuito']
     if s_destino > s_origen:
         code_1 = s_origen + "#" + s_destino + "--" + circuito
         code_2 = s_destino + "#" + s_origen + "--" + circuito
@@ -1718,7 +1730,8 @@ def preparar_dict(serie):
         code_1 = s_destino + "#" + s_origen + "--" + circuito
         code_2 = s_origen + "#" + s_destino + "--" + circuito
     value = serie[select].to_dict()
-    resp = [dict(name=code_1, value=value, imports=[code_2]), dict(name=code_2, value=0, imports=[])]
+
+    resp = [dict(name=code_1, value=value, imports=[code_2]), dict(name=code_2, value=value, imports=[])]
     return resp
 
 
@@ -1736,8 +1749,11 @@ def process_values(df_work, time_range):
             describe = df_values.describe().T
             describe.index = [df_work["CodigoMed"].loc[ix]]
             describe["timestamp"] = snapshot.Timestamp
-            describe["current_value"] = snapshot.Value
-
+            try:
+                describe["current_value"] = float(snapshot.Value)
+            except Exception as e:
+                print("[{0}]: ".format(pi_point.pt) + str(e))
+                describe["current_value"] = None
         else:
             describe = pd.DataFrame(columns=columns, index=[df_work["CodigoMed"].loc[ix]])
             describe["timestamp"] = dt.datetime.now()
@@ -1770,7 +1786,6 @@ def process_calidad(df_work):
 
 
 def validar_flujo(df_to):
-
     df_to = df_to.copy()
     try:
         df_to = df_to.sort_values(by="timestamp")
@@ -1894,6 +1909,29 @@ def convert_str_to_time(str_time, ls_format=None):
     return dt_resp
 
 
+def consultar_for():
+    for_path = r"\\qcitbfwnas01\SAO\Varios\FOR.xlsx"
+    # t = datetime.datetime.now()
+
+    skip_rows = 8
+    result = dict()
+    try:
+        xl = pd.ExcelFile(for_path)
+        sheet_ls = xl.sheet_names
+        for sheet in sheet_ls:
+            df_for = xl.parse(sheet, skiprows=skip_rows)
+            cols = [x for x in df_for.columns if "Unnamed" not in x]
+            df_for = df_for[cols]
+            df_for.fillna(method='ffill', inplace=True)
+            df_for.sort_values(by=["FOR"], inplace=True, ascending=False)
+            df_for.reset_index(inplace=True)
+            result[sheet] = df_for.to_dict(orient="index")
+    except Exception as e:
+        print(e)
+        return dict(error="El archivo " + for_path + "no fue encontrado")
+    return result
+
+
 def test():
     # other_generation_detail_now()
     # generation_energy_by_tech_now()
@@ -1914,7 +1952,7 @@ def test():
     # tendencia_demanda_por_provincia("Pichincha", pi_svr.time_range("2018-10-09", "2018-10-10"))
     # generacion_por_provincia("Pichincha")
     # informacion_sankey_generacion_demanda_por_provincia("Azuay")
-    cargabilidad_de_lineas(138)
+
     pass
 
 
