@@ -35,7 +35,7 @@ no_convencional_list = ['Biomasa', 'Eólica', 'Fotovoltaica', 'Bio Gas']
 hidraulica_list = ['Embalse', 'Pasada']
 
 system_path_file = "F:\DATO\Estad\System SIVO\SYSTEM yyyy.xlsx"
-empresas_file_config = "\static\\app_data\maps\empr_electricas_por_provincia.xlsx"
+empresas_file_config = r"\static\app_data\maps\empr_electricas_por_provincia.xlsx"
 
 yyyy_MM_dd_HH_mm_ss = "yyyy-MM-dd HH:mm:ss"
 yyyy_MM_dd = "yyyy-MM-dd"
@@ -468,6 +468,11 @@ def demanda_nacional_desde_sivo(ini_date=None, fin_date=None):
 
     if ini_date is None and fin_date is None:
         time_range = pi_svr.time_range_for_today_all_day
+    elif isinstance(ini_date, str) and ini_date.isnumeric():
+        ini_date = float(ini_date)/1000
+        ini_date = dt.datetime.fromtimestamp(ini_date)
+        fin_date = ini_date + dt.timedelta(days=1)
+        time_range = pi_svr.time_range(ini_date, fin_date)
     elif isinstance(ini_date, str) and fin_date is None:
         fin_date = convert_str_to_time(ini_date)
         fin_date = fin_date + dt.timedelta(days=1)
@@ -591,15 +596,15 @@ def demanda_empresas(time=None, level=-1):
 
     year = dt.datetime.now().year
     sql_str = "SELECT t.Nom_UNegocio, t.Fecha, PotMax MW FROM SIVO.dbo.TMP_System_Dem t " + \
-              "where YEAR(t.Fecha) = {0}".format(year)
+              "where YEAR(t.Fecha) = {0}"
 
-    df_max = pd.read_sql(sql_str, gop_svr.conn)
-
+    df_max = pd.read_sql(sql_str.format(year), gop_svr.conn)
     if df_max.empty:
         year = year - 1
         df_max = pd.read_sql(sql_str.format(year), gop_svr.conn)
 
     df_max.dropna(inplace=True)
+    df_max.drop_duplicates(subset=['Nom_UNegocio'], keep='first', inplace=True)
     df_max = df_max.pivot(index='Fecha', columns='Nom_UNegocio')
     df_max.columns = [col[1] for col in df_max.columns]
 
@@ -633,12 +638,16 @@ def demanda_empresas(time=None, level=-1):
 
 def maxima_demanda_nacional(year=None):
     if year is None:
-        year = str(dt.datetime.now().year)
+        year = dt.datetime.now().year
 
     sql_str = 'SELECT TOP 1 * FROM [SIVO].[dbo].[TMP_System_Perdidas_Potencia] PP' + \
               ' WHERE YEAR(PP.Fecha)=yyyy ORDER BY PP.DeePerdidas DESC'
-    sql_str = sql_str.replace("yyyy", year)
-    df = pd.read_sql(sql_str, gop_svr.conn)
+    sql_f = sql_str.replace("yyyy", str(year))
+    df = pd.read_sql(sql_f, gop_svr.conn)
+    if df.empty:
+        sql_f = sql_str.replace("yyyy", str(year-1))
+        df = pd.read_sql(sql_f, gop_svr.conn)
+    # print(df)
     return df.T
 
 
@@ -877,11 +886,14 @@ def informacion_sankey_generacion_demanda(timestamp=None):
 
     gen_total = detalle_generacion_potencia("Total", timestamp)
     gen_total = gen_total[gen_total["Potencia"] > 0]["Potencia"].sum()
-    no_convencional_mw = gen_total - df_result["value"].sum()
-    if no_convencional_mw > 0:
-        df_result.at[idx, "source"] = "No convencional"
-        df_result.at[idx, "value"] = round(no_convencional_mw, 1)
-        idx += 1
+    try:
+        no_convencional_mw = gen_total - df_result["value"].sum()
+        if no_convencional_mw > 0:
+            df_result.at[idx, "source"] = "No convencional"
+            df_result.at[idx, "value"] = round(no_convencional_mw, 1)
+            idx += 1
+    except Exception as e:
+        print(e)
 
     # considerar importacion:
     time_range = pi_svr.time_range(str(timestamp), str(timestamp))
@@ -1529,7 +1541,7 @@ def generacion_por_provincia(provincia, time_range=None):
         return pd.DataFrame()
 
 
-def reserva_de_generacion(timestamp=None):
+def reserva_de_generacion(timestamp=None, n_times=0):
     if timestamp is None:
         timestamp = time_last_30_m()
     elif isinstance(timestamp, str):
@@ -1564,8 +1576,9 @@ def reserva_de_generacion(timestamp=None):
     df_gen_linea = df_gen_linea[mask]
     set_linea = set(df_gen_linea.index).intersection(df_indisponibilidad.columns)
     df_indisponibilidad_linea = df_indisponibilidad[list(set_linea)]
-    p_efectiva_en_linea = round(df_indisponibilidad_linea.loc["POT_EFECTIVA"].sum(axis=0, skipna=False), 1)
-    p_indisponible_linea = round(df_indisponibilidad_linea.loc["POT_INDISPONIBLE"].sum(axis=0, skipna=False), 1)
+    p_efectiva_en_linea = round(df_indisponibilidad_linea.loc["POT_EFECTIVA"].sum(axis=0, skipna=True), 1)
+    p_indisponible_linea = round(df_indisponibilidad_linea.loc["POT_INDISPONIBLE"].sum(axis=0, skipna=True), 1)
+    # print(df_indisponibilidad_linea.loc["POT_INDISPONIBLE"])
     p_disponible_linea = round(p_efectiva_en_linea - p_indisponible_linea, 1)
     p_generacion = round(df_gen_linea.iloc[:, 0].sum(skipna=False), 1)
     p_reserva = round(p_disponible_linea - p_generacion, 1)
@@ -1575,6 +1588,10 @@ def reserva_de_generacion(timestamp=None):
                 p_indisponible_total=p_indisponible_total, p_disponible_total=p_disponible_total,
                 timestamp=str(timestamp))
 
+    if (p_efectiva_en_linea >= p_efectiva or p_efectiva_en_linea < p_efectiva*0.2 or
+        p_reserva >= p_disponible_total or p_reserva <= 0 or p_disponible_linea > p_efectiva or
+        p_indisponible_linea > p_disponible_total) and n_times < 5:
+        reserva_de_generacion(timestamp, n_times + 1)
     tmp.save_dict_in_cal_db(collection_name, cal_id, resp)
     return resp
 
@@ -1910,10 +1927,10 @@ def convert_str_to_time(str_time, ls_format=None):
 
 
 def consultar_for():
-    for_path = r"\\qcitbfwnas01\SAO\Varios\FOR.xlsx"
+    for_path = r"\\qcitbfwnas01\SAO\Varios\plantilla_FOR.xlsx"
     # t = datetime.datetime.now()
 
-    skip_rows = 8
+    skip_rows = 0
     result = dict()
     try:
         xl = pd.ExcelFile(for_path)
@@ -1923,7 +1940,7 @@ def consultar_for():
             cols = [x for x in df_for.columns if "Unnamed" not in x]
             df_for = df_for[cols]
             df_for.fillna(method='ffill', inplace=True)
-            df_for.sort_values(by=["FOR"], inplace=True, ascending=False)
+            df_for.sort_values(by=["Voltaje", "FOR"], inplace=True, ascending=False)
             df_for.reset_index(inplace=True)
             result[sheet] = df_for.to_dict(orient="index")
     except Exception as e:
@@ -1952,6 +1969,7 @@ def test():
     # tendencia_demanda_por_provincia("Pichincha", pi_svr.time_range("2018-10-09", "2018-10-10"))
     # generacion_por_provincia("Pichincha")
     # informacion_sankey_generacion_demanda_por_provincia("Azuay")
+    # demanda_empresas()
 
     pass
 

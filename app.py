@@ -748,7 +748,7 @@ if __name__ == '__main__':
     logger.setLevel(logging.ERROR)
     logger.addHandler(handler)
     # app.run(host='10.30.2.45', port=80, debug=True)     # threaded=True
-    app.run(host='10.30.200.100', port=80, debug=True)     # threaded=True
+    app.run(host='10.30.200.69', port=80, debug=False)     # threaded=True
     # app.run(port=80, debug=True)     # threaded=True
     # app.run(host='127.0.0.1', port=5000)
     # app.run()

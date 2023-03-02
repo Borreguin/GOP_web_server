@@ -9,6 +9,8 @@
     "My work is well done to honor God at any time" R Sanchez A.
     Mateo 6:33
 """
+import os.path
+
 """
     Este proyecto ha sido desarrollado en la Gerencia de Operaciones de CENACE
     Mateo633
@@ -24,7 +26,7 @@ import numpy as np
 import pandas as pd
 import json
 from hmmlearn.hmm import GaussianHMM
-from sklearn.externals import joblib
+import joblib
 
 # Función para imprimir con Markdown style:
 # from IPython.display import Markdown, display
@@ -205,8 +207,8 @@ def ordered_hmm_model(model, method='average', metric='euclidean'):
 
 
 def save_model_and_log(model, log_register, model_path, log_path, file_name):
-    file1 = model_path + file_name
-    file2 = log_path + file_name.replace(".pkl", ".json")
+    file1 = os.path.join(model_path, file_name)
+    file2 = os.path.join(log_path, file_name.replace(".pkl", ".json"))
 
     try:
         joblib.dump(model, filename=file1, compress=3, protocol=2)

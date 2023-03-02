@@ -1,1 +1,0 @@
-C:\ProgramData\Anaconda3\python.exe C:\inetpub\wwwroot\Gop_WebServer_production\hmm_application\hmm_training.py

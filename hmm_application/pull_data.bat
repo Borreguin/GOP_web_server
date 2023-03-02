@@ -1,1 +1,1 @@
-C:\ProgramData\Anaconda3\python.exe C:\inetpub\wwwroot\Gop_WebServer_production\hmm_application\pull_data.py
+python pull_data.py

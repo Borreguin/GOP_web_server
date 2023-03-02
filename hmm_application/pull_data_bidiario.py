@@ -1,12 +1,7 @@
 import os
 import pandas as pd
 import sys
-
-script_path = os.path.dirname(os.path.abspath(__file__))
-data_path = os.path.join(script_path, "data")
 sys.path.append('../../')
-sys.path.append(script_path)
-sys.path.append(data_path)
 from my_lib.hmm import hmm_util as hmm_u
 from my_lib.GOP_connection import GOPserver as gop
 import datetime
@@ -15,16 +10,18 @@ import numpy as np
 # Progress bar
 from tqdm import tqdm
 
-
+script_path = os.path.dirname(os.path.abspath(__file__))
+data_path = script_path + "\\data\\"
 gop_sv = gop.GOPserver()
-
+dt_1d = datetime.timedelta(days=1)
+dt_23h = datetime.timedelta(hours=23)
 
 def run_process():
-    df_config = pd.read_excel(os.path.join(script_path, "config.xlsx"))
+    df_config = pd.read_excel(script_path + "\\config.xlsx")
     df_config.dropna(inplace=True)
     for ix in df_config.index:
         sql_str = df_config["historic"].loc[ix]
-        sql_file = df_config["model_name"].loc[ix].replace("hmm_", "")
+        sql_file = df_config["model_name"].loc[ix].replace("hmm_1", "2")
         run_pull(sql_str, sql_file)
     return True
 
@@ -36,7 +33,7 @@ def run_pull(sql_str, sql_file):
     d = pd.date_range("2014-01-01", dt_now)
     # d = pd.date_range("2018-11-01", dt_now)
     sp_time_range = np.array_split(d, n_parts)
-    file_path = os.path.join(data_path, sql_file)
+    file_path = data_path + sql_file
 
     if not os.path.exists(file_path):
         df_t = pull_data(sql_str, sp_time_range)
@@ -56,16 +53,28 @@ def run_pull(sql_str, sql_file):
 
 def pull_data(sql_str, sp_time_range):
     sp_time_range = [x for x in sp_time_range if not x.empty]
-    df_t = pd.DataFrame()
+    df_t = pd.DataFrame(columns=range(0, 48))
     for sp in tqdm(sp_time_range, desc="Pulling process", ncols=100):
-        sql = sql_str.format(sp[0], sp[-1])
-        df = pd.read_sql(sql, gop_sv.conn)
-        df["timestamp"] = [f"{f} {h}" for f, h in zip(df['Fecha'], df['Hora'])]
-        df["timestamp"] = pd.to_datetime(df["timestamp"])
-        df = df.groupby('timestamp').sum()
-        df.sort_index(inplace=True)
-        df = hmm_u.pivot_DF_using_dates_and_hours(df)
-        df_t = df_t.append(df)
+        for i_sp in sp:
+            sql = sql_str.format(i_sp, i_sp + dt_1d)
+            t_fin = i_sp + dt_1d + dt_23h
+            t_range = pd.date_range(i_sp, t_fin, freq="60T")
+            # print(sql, len(t_range))
+            df = pd.read_sql(sql, gop_sv.conn)
+            df["timestamp"] = df["Fecha"] + " " + df["Hora"]
+            df["timestamp"] = pd.to_datetime(df["timestamp"])
+            df.index = df["timestamp"]
+            df = df[df.index.isin(t_range)]
+            df = df.groupby(df.index).sum()
+            try:
+                df.sort_index(inplace=True)
+                df_aux = pd.DataFrame(data=df.T.values, index=[i_sp], columns=range(0, 48))
+                # print(df.info())
+                # df = hmm_u.pivot_DF_using_dates_and_hours(df)
+                df_t = df_t.append(df_aux)
+            except Exception as e:
+                print("\n" + str(i_sp) + "\n" + str(e))
+                continue
     return df_t
 
 

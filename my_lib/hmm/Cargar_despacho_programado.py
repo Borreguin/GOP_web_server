@@ -7,31 +7,59 @@ Mateo633
 import pandas as pd
 import datetime as dt
 import openpyxl as pyxl
+import sys, os
+script_path = os.path.dirname(os.path.abspath(__file__))
+project_path = os.path.dirname(script_path)
+project_path = os.path.dirname(project_path)
+sys.path.append(project_path)
+sys.path.append(script_path)
+print(sys.path)
 from my_lib.GOP_connection import GOPserver as op
-import sqlalchemy as sql_a
+
+# import sqlalchemy as sql_a
 
 gop_svr = op.GOPserver()
 
 """ Variables por defecto: """
 # layout_path_file = "S:/Aplicaciones Procesos/Aplicaciones SIVO/DATOSPROG_PLANTILLA.xlsx"
 layout_path_file = r"\\qcitbfwnas01\GOP\SAO\UGIE\AÑO 2018\Aplicaciones Procesos\Aplicaciones SIVO\DATOSPROG_PLANTILLA.xlsx"
-path_result_file = "P:/Despacho/DP_yyyymmdd.xlsx"
-despacho_path_file = "M:/Despacho Prog/Pred_{0}.xlsx"
-redespacho_path_file = "M:/Redespachos/A Ejecutarse/R{0}_{1}.xls"
+# path_result_file = r"P:\Despacho\DP_yyyymmdd.xlsx"
+path_result_file = r"\\qcitbfwnas01\ARCHIVOS DE CARGA\Despacho\DP_yyyymmdd.xlsx"
+# despacho_path_file = r"M:\Despacho Prog\Pred_{0}.xlsx"
+despacho_path_file = r"\\qcitbfwnas01\MEM\Despacho Prog\Pred_{0}.xlsx"
+# redespacho_path_file = r"M:\Redespachos\A Ejecutarse\R{0}_{1}.xls"
+redespacho_path_file = r"\\qcitbfwnas01\MEM\Redespachos\A Ejecutarse\R{0}_{1}.xlsx"
 # mem_file_path_file =  "M:/Genemp/Año2018/0718/25/DESPACHOPROG_2018-07-25.xlsx"
 # prog_file_path_file = "M:/Genemp/AñoYYYY/mmyy/dd/DESPACHOPROG_YYYY-mm-dd.xlsx"
-prog_file_path_file = r"\\qcitbfwnas01\GOP\SAO\UGIE\AÑO YYYY\Genemp\mmyy\dd\DESPACHOPROG_YYYY-mm-dd.xlsx"
+prog_file_path_file = r"\\qcitbfwnas01\GOP\SAO\UGIE\AÑO YYYY\PE08. DESPACHO REAL\02 RESPALDO INFORMACIÓN AGENTES\mmyy\dd\DESPACHOPROG_YYYY-mm-dd.xlsx"
 
 id_columns = ['Empresa', 'UNegocio', 'Central', 'GrupoGeneracion', 'Unidad']
 desp_columns = ['EsRedespacho', 'NumRedespacho', 'HoraVigencia']
 data_columns = ['Fecha', 'Hora', 'MV', 'Precio']
 table_columns = id_columns + desp_columns + data_columns
 
-etiquetas_exportacion = ['ECUACOLO230',	'ECUACOLO138',	'ECUAPERU230']
+etiquetas_exportacion = ['ECUCOL230',	'ECUCOL138',	'ECUPER230']
+etiquetas_importacion = ['COLECU230',	'COLECU138',	'PERECU230']
+codigos_gop = {'COLECU230': {"import": "COLECU230", "export": "ECUCOL230"},
+                'COLECU230.1': {"import": "COLECU230", "export": "ECUCOL230"},
+                'COLECUA138': {"import": "COLECU138", "export": "ECUCOL138"},
+               'ECUPER230': {"import": 'PERECU230', "export": 'ECUPER230'},
+                'PERECU230': {"import": 'PERECU230', "export": 'ECUPER230'},
+               'ECUPER230.1': {"import": 'PERECU230', "export": 'ECUPER230'}}
 
+
+# etiquetas_exportacion = ['ECUACOLO230',	'ECUACOLO138',	'ECUAPERU230']
+# etiquetas_importacion = ['COLOECUA230',	'COLOECUA138',	'PERUECUA230']
+# codigos_gop = {'COLOECUA230': {"import": "COLOECUA230", "export": "ECUACOLO230"},
+#                'COLOECUA230.1': {"import": "COLOECUA230", "export": "ECUACOLO230"},
+#                'COLOECUA138': {"import": "COLOECUA138", "export": "ECUACOLO138"},
+#               'ECUAPERU230': {"import": 'PERUECUA230', "export": 'ECUAPERU230'},
+#                'PERUECUA230': {"import": 'PERUECUA230', "export": 'ECUAPERU230'},
+#               'ECUAPERU230.1': {"import": 'PERUECUA230', "export": 'ECUAPERU230'}}
 
 def run_process_for(dt_date):
-    msgs = "[Empezar]: \t\t  Empezando el proceso de {0}".format(dt_date)
+    msgs = "[--Empezar]: \t\t  Empezando el proceso de {0}".format(dt_date)
+    # print(msgs)
     # run_tie_macro(dt_date)
 
     """ Variables de proceso """
@@ -43,21 +71,27 @@ def run_process_for(dt_date):
     print("-->Iniciando: " + str(fecha_n_menos_1))
     # 1. Busca si existió un redespacho para el día n-1, caso contrario, busca el despacho:
     df_24_horas_n_menos_1, msg_i = obtener_hora_24_de_ultimo_despacho(fecha_n_menos_1)
+    if df_24_horas_n_menos_1.empty:
+        return "Error al cargar el descapcho", msg_i
+    # return "Depurar", msgs + str(df_24_horas_n_menos_1)
     msgs += "\n\n--> Leyendo hora 24h: ({0})".format(fecha_n_menos_1)
-    msgs += msg_i
+    msgs += msg_i               # para correo electronico
 
     """ día: n """
-    # 2.1 Despacho programado normal
+    #2.1 Despacho programado normal
     print("\n--> Iniciando: " + str(fecha_n))
     print("Leyendo despachos o redespachos")
     msgs += "\n\n--> Procesando despacho/redespacho de: " + str(fecha_n)
     d_path_file = despacho_path_file.format(dt_date.strftime('%y%m%d'))
+    # code_list -> codigo de unidades
+    # thermo_list -> codigo de termoelectricas
+    # df_info_total -> DataFrame con información del Excel
     code_list, thermo_list, df_info_total, msg_n = \
         read_despacho(fecha_n, d_path_file)
     msgs += msg_n
 
     # Incluir la hora 24 del último despacho (n-1)
-    df_info_total = pd.concat([df_24_horas_n_menos_1, df_info_total])
+    df_info_total = pd.concat([df_24_horas_n_menos_1, df_info_total], sort=True)
     df_info_total.sort_index(inplace=True)
     df_info_total = df_info_total.fillna(0)
 
@@ -76,7 +110,7 @@ def run_process_for(dt_date):
 
     # Excluir la hora 24 del siguiente despacho (n+1)
     df_info_total = df_info_total.iloc[:-1]
-
+    
     msgs += run_despacho(fecha_n, df_info_total, code_list, thermo_list)
 
     # 2.2. Busca redespachos para el día n
@@ -104,7 +138,7 @@ def run_process_for(dt_date):
             df_redespacho_n = df_info_total.copy()
 
             # Incluye la hora 00 del último despacho (n-1)
-            df_redespacho_n = pd.concat([df_24_horas_n_menos_1, df_redespacho_n])
+            df_redespacho_n = pd.concat([df_24_horas_n_menos_1, df_redespacho_n], sort=True)
 
             # Existio redespacho, modificando el tipo:
             # tipo_despacho = dict(EsRedespacho=True, NumRedespacho=n_redespacho, HoraVigencia=str(hora_vigente))
@@ -119,7 +153,7 @@ def run_process_for(dt_date):
             new_index[-1] = df_redespacho_n.index[-1] - pd.Timedelta("1 s")
             df_aux = df_redespacho_n.copy()
             df_aux.index = new_index
-            df_redesp_to_save = pd.concat([df_redesp_to_save, df_aux])
+            df_redesp_to_save = pd.concat([df_redesp_to_save, df_aux], sort=True)
 
             # Excluye la hora 24 del día n
             df_redespacho_n = df_redespacho_n.iloc[:-1]
@@ -128,7 +162,7 @@ def run_process_for(dt_date):
             msgs += run_despacho(fecha_n, df_redespacho_n, code_list, thermo_list)
 
     # df_to_save y tipo_despacho contiene la última información
-
+    
     new_index = list(df_desp_to_save.index)
     new_index[-1] = df_desp_to_save.index[-1] - pd.Timedelta("1 s")  # 23:59
     df_desp_to_save.index = new_index
@@ -139,7 +173,7 @@ def run_process_for(dt_date):
         # incluye la hora 24h del dia n-1, es decir las 0:00 del dia n
         # df_redesp_to_save = pd.concat([df_24_horas_n_menos_1, df_redesp_to_save])
         # df_redesp_to_save.index = new_index
-        df_to_save = pd.concat([df_desp_to_save[1:], df_redesp_to_save[1:]])
+        df_to_save = pd.concat([df_desp_to_save[1:], df_redesp_to_save[1:]], sort=True)
         df_to_save.fillna(0, inplace=True)
 
 
@@ -147,7 +181,7 @@ def run_process_for(dt_date):
     # excluye la hora 00 del día n
     # df_to_save = df_to_save.iloc[1:]
     msgs += run_despacho(fecha_n, df_to_save, code_list, thermo_list, saveSIVO=False, saveExcel='MEM')
-
+    # return "Error al cargar el descapcho", msgs
     """ día: n+1 """
     msgs += "\n\n--> Procesando Despacho de: " + str(fecha_n_mas_1)
     msgs += msg_hora_24h
@@ -160,7 +194,7 @@ def run_process_for(dt_date):
         df_despacho_n_mas_1 = df_info_total.iloc[:-1]
 
         # Incluye la hora 00:00 del día n (sea por despacho o por redespacho)
-        df_despacho_n_mas_1 = pd.concat([df_24_horas_n, df_despacho_n_mas_1])
+        df_despacho_n_mas_1 = pd.concat([df_24_horas_n, df_despacho_n_mas_1], sort=True)
         df_despacho_n_mas_1.sort_index(inplace=True)
 
         # Procesar información del despacho programado:
@@ -180,7 +214,7 @@ def run_process_for(dt_date):
         title = "[SIVO]Despacho programado subido automáticamente: [Fecha: {0}]".format(dt_date)
     send_mail(msg_to_send=msgs, subject=title)
     # print(msgs.encode('ascii', 'ignore'))
-
+    print(msgs)
     return title, msgs
 
 
@@ -206,6 +240,8 @@ def obtener_hora_24_de_ultimo_despacho(fecha_t):
     if df_24_horas.empty:
         d_path_file = despacho_path_file.format(fecha_t.strftime('%y%m%d'))
         code_list, thermo_list, df_info_total, msg_n = read_despacho(fecha_t, d_path_file)
+        if len(code_list) == 0:
+            return pd.DataFrame(), msg_n
         df_24_horas = df_info_total.iloc[[-1]]
         msg_24h = "\n[Hora 24h]: \t \t Incluyendo hora 24h del despacho 0 de la fecha " + str(fecha_t)
         msg_i += msg_n
@@ -222,6 +258,7 @@ def read_despacho(dt_date, path_file):
 
     df_info_total = get_info_despacho(dt_date, path_file)
     msg_i = "\n[Leer Despacho]: \t [{0}]: Archivo de despacho leído.".format(path_file)
+    # return list(), list(), pd.DataFrame(), "\n[{0}]: El archivo no existe".format(path_file)
     return code_list, thermo_list, df_info_total, msg_i
 
 
@@ -240,8 +277,10 @@ def read_redespacho(dt_date, n_redespacho):
 
     else:
         df_info_total = df_info_total.drop([0, 1])[:24]
+        df_info_total.columns = [str(x) for x in df_info_total.columns] #error code
         valid_columns = [x for x in df_info_total.columns if 'Unnamed' not in x]
-        valid_columns = [x for x in valid_columns if 'HORA.1' not in x]
+        valid_columns = [x for x in valid_columns if 'HORA.' not in x]
+        valid_columns = [x for x in valid_columns if 'PRECIO.' not in x]
         df_info_total = df_info_total[valid_columns]
         df_info_total.index = pd.date_range(dt_date, dt_date + pd.Timedelta('24 H'), freq="60T", closed='right')
         df_info_total.fillna(0, inplace=True)
@@ -251,8 +290,36 @@ def read_redespacho(dt_date, n_redespacho):
 
     # Obteniendo los códigos de las centrales de generación
     code_list, thermo_list = get_codigos(d_path_file)
+    if len(code_list) == 0 or df_info_total.empty:
+        return list(), list(), pd.DataFrame(), hora_vigente, "\n[{0}]: El archivo no existe".format(d_path_file)
+
+    # Obteniendo los códigos de las centrales de generación
+    code_list, thermo_list = get_codigos(d_path_file)
     if len(code_list) == 0:
         return list(), list(), pd.DataFrame(), hora_vigente, "\n[{0}]: El archivo no existe".format(d_path_file)
+
+    # Considerando signos en tabla de redespachos:
+    df_result = pd.DataFrame(0, index=df_info_total.index, columns=etiquetas_exportacion + etiquetas_importacion)
+    for gop_code in codigos_gop.keys():
+        print(df_info_total.columns)
+        print(gop_code)
+        if gop_code in list(df_info_total.columns):
+            df_filter = df_info_total[[gop_code]].copy()
+            negatives = df_filter[gop_code] < 0
+            positives = df_filter[gop_code] > 0
+            if any(positives):  # Si existe valores > 0
+                # IMPORTACIÓN (GOP) (valores > 0) -> (GPL) (P.exporta) (P.importa) Voltaje
+                gpl_code = codigos_gop[gop_code]["import"]
+                df_result.loc[positives, gpl_code] = df_result.loc[positives, gpl_code] + df_filter.loc[
+                    positives, gop_code]
+            if any(negatives):
+                # EXPORTACION (GOP) (valores < 0)
+                gpl_code = codigos_gop[gop_code]["export"]
+                df_result.loc[negatives, gpl_code] = df_result.loc[negatives, gpl_code] - df_filter.loc[
+                    negatives, gop_code]
+            df_info_total.drop(columns=gop_code, inplace=True)
+    for col in df_result.columns:
+        df_info_total[col] = df_result[col]
 
     return code_list, thermo_list, df_info_total, hora_vigente, msg_i
 
@@ -368,7 +435,7 @@ def run_despacho(dt_date, df_info_total, code_list, thermo_list, saveSIVO=True,
 
         df_i['NombreArchivo'] = "Carga_automática " + str(dt_date)
 
-        df_result = pd.concat([df_result, df_i])
+        df_result = pd.concat([df_result, df_i], sort=True)
 
     if saveSIVO:
         msg_i += subir_a_SIVO(df_result)
@@ -390,6 +457,8 @@ def run_despacho(dt_date, df_info_total, code_list, thermo_list, saveSIVO=True,
         mask = df_result["GrupoGeneracion"].isin(grupo_generacion)
         df_result.fillna(0, inplace=True)
         df_result.loc[mask, "MW"] = - df_result[mask]["MW"]
+        mask = df_result["Hora"] == "00:00"
+        df_result.drop(df_result[mask].index, inplace=True)
         msg_i += save_result_to_excel(df_result, path_file, sheet_name='DPL_DespachoProgramado', columns=order_list)
 
 
@@ -431,7 +500,8 @@ def send_mail(msg_to_send, subject):
 
     # setup the parameters of the message
     password = "SAOGMAIL"
-    recipients = ["ugie@cenace.org.ec", "rsanchez@cenace.org.ec"]
+    recipients = ["ugie@cenace.org.ec"]
+    # recipients = ["rsanchez@cenace.org.ec"]
     msg['From'] = "aadopost.cenace@gmail.com"
     msg['To'] = ",".join(recipients)
     msg['Subject'] = subject
@@ -440,12 +510,14 @@ def send_mail(msg_to_send, subject):
     msg.attach(MIMEText(message, 'plain'))
 
     # create server
-    server = smtplib.SMTP('smtp.gmail.com: 587')
+    # server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
+    # server = smtplib.SMTP('smtp.gmail.com: 25')
+    server = smtplib.SMTP('mail.cenace.org.ec: 25')
 
     server.starttls()
 
     # Login Credentials for sending the mail
-    server.login(msg['From'], password)
+    # server.login(msg['From'], password)
 
     # send the message via the server.
     server.sendmail(msg['From'], msg['To'], msg.as_string())
@@ -494,13 +566,15 @@ def subir_a_SIVO(df_result):
         elif len(entities) > 0:
             msg += "\n[Subir a DB SIVO]: \t Las siguientes entidades han sido añadidas al despacho programado: \n" + str(entities)
         else:
-            msg += "\n[Subir a DB SIVO]: \t " + str(e)
+            msg += "\n[Subir a DB SIVO]: \t "
     return msg
 
 
 def get_info_despacho(dt_date, path_file):
     df = read_excel_file(path_file, skiprows=8, sheet_name="DESPACHO")
+    # print(df.info())
     df = df.drop([0, 1])[:24]
+    df.columns = [str(x) for x in df.columns] 
     valid_columns = [x for x in df.columns if 'Unnamed' not in x]
     valid_columns = [x for x in valid_columns if 'HORA.1' not in x]
     df = df[valid_columns]
@@ -528,7 +602,7 @@ def get_mapping_info(l_path_file):
     df_map = pd.read_excel(l_path_file, sheet_name="MAPA")
     df_etiquetas_especiales = pd.read_excel(l_path_file, sheet_name="ADICIONALES")
     valid_columns = [x for x in df_map.columns if 'Unnamed' not in str(x)]
-    valid_columns = [x for x in valid_columns if 'HORA.1' not in x]
+    valid_columns = [x for x in valid_columns if 'HORA.1' not in str(x)]
     df_map = df_map[valid_columns]
     # df_map = df_map[df_map["HABILITADOR"] == 1]
     lst = df_etiquetas_especiales.T.values
@@ -545,13 +619,14 @@ def run_tie_macro(dt_date):
     df_result_138_kV = pd.DataFrame(index=time_range, columns=columns)
     df_result_230_kV = pd.DataFrame(index=time_range, columns=columns)
     df_result_138_kV = give_format(df_result_138_kV, 'PAN138TUL')
-    df_result_230_kV = give_format(df_result_230_kV, 'JAM230POM')
+    df_result_230_kV = give_format(df_result_230_kV, 'JAM230PIM')
 
     # leyendo el archivo de Resultado:
     path_file = "M:\Datos Predes\Resultado{0}.xls".format(dt_date.strftime("%d%m"))
     df = read_excel_file(path_file, skiprows=8)
-    valid_columns = [x for x in df.columns if 'Unnamed' not in x]
-    valid_columns = [x for x in valid_columns if 'HORA.1' not in x]
+    df.columns = [str(x) for x in df.columns]
+    valid_columns = [x for x in df.columns if 'Unnamed' not in str(x)]
+    valid_columns = [x for x in valid_columns if 'HORA.1' not in str(x)]
     df = df[valid_columns]
 
     # existe transaccion
@@ -559,7 +634,7 @@ def run_tie_macro(dt_date):
     df_result_138_kV['TRANSACCION'] = hay_transaccion(df.iloc[:, 6])
 
     # save results:
-    df_final = pd.concat([df_result_138_kV, df_result_230_kV])
+    df_final = pd.concat([df_result_138_kV, df_result_230_kV], sort=True)
     df_final = df_final[columns]
     path_to_save = "P:\Resultado\RE_{0}.xlsx".format(dt_date.strftime("%Y%m%d"))
     df_final.to_excel(path_to_save, index=False, sheet_name="Resultado")
@@ -631,9 +706,10 @@ if __name__ == "__main__":
     if today:
         dt_today = dt.datetime.today().date()
     else:
-        dt_today = dt.datetime.strptime("2018-11-12", "%Y-%m-%d").date()
+        dt_today = dt.datetime.strptime("2021-03-22", "%Y-%m-%d").date()
     print("Empezando proceso por:" + str(dt_today))
     run_process_for(dt_today)
+    # send_mail("esta es una prueba", "Prueba")
 
 """ 
 dt_plus_1 = dt_date +  dt.timedelta(days=1)

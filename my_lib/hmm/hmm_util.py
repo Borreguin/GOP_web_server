@@ -24,7 +24,7 @@ import numpy as np
 import pandas as pd
 import json
 from hmmlearn.hmm import GaussianHMM
-from sklearn.externals import joblib
+import joblib
 import os
 
 # Función para imprimir con Markdown style:

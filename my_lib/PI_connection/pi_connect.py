@@ -217,7 +217,7 @@ class PI_point:
             values = self.pt.RecordedValues(time_range, AFBoundary, "", False)
         except Exception as e:
             print(e)
-            print("[pi_connect] [{0}, {1}] no correct object".format(time_range, n_samples))
+            print("[pi_connect] [{0}, {1}] no correct object".format(time_range))
         if as_df:
             values = to_df(values, self.tag_name, numeric)
         return values
@@ -296,7 +296,7 @@ def to_df(values, tag, numeric=True):
             df[tag] = pd.to_numeric([x.Value for x in values], errors='coerce')
         else:
             df[tag] = [x.Value for x in values]
-    except Expection as e:
+    except Exception as e:
         print(e)
         print("[pi_connect] [{0}] to pdf".format(values))
     return df
@@ -318,8 +318,8 @@ def test():
     value2 = pt.current_value()
     print("value2:" + str(value2))
 
-    tag_list = ['JAMONDIN230POMAS_1_P.LINEA_ICC.AV', 'POMASQUI230JAMON_1_P.LINEA_RDV.AV',
-                'JAMONDIN230POMAS_1_P.LINEA_ICC.AQ', 'POMASQUI230JAMON_1_P.LINEA_RDV.AQ']
+    tag_list = ['CAL_DIST_QUITO_P.CARGA_TOT_1_CAL.AV', 'CAL_DIST_QUITO_P.CARGA_TOT_1_CAL.AV',
+                'CAL_DIST_QUITO_P.CARGA_TOT_1_CAL.AQ', 'CAL_DIST_QUITO_P.CARGA_TOT_1_CAL.AQ']
     df1 = pi_svr.interpolated_of_tag_list(tag_list, time_range, span)
     df1.plot()
     df2.plot()
